@@ -53,6 +53,30 @@ def create_tables():
             '''
         )
 
+        cursor.execute (
+            '''
+                CREATE TABLE IF NOT EXISTS documentos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    filename TEXT,
+                    origem TEXT,
+                    conteudo BLOB NOT NULL,
+                    timestamp TEXT
+                )
+            '''
+        )
+
+        cursor.execute (
+            '''
+                CREATE TABLE IF NOT EXISTS relatorios (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    documento_id INTEGER,
+                    relatorio BLOB NOT NULL,
+                    timestamp TEXT,
+                    FOREIGN KEY (documento_id) REFERENCES documentos(id)
+                )
+            '''
+        )
+
         cursor.execute("INSERT OR IGNORE INTO sistemas (nome, status) VALUES (?,?)", ('servidor_auth', 'operacional'))
         cursor.execute("INSERT OR IGNORE INTO sistemas (nome, status) VALUES (?,?)", ('banco_dados', 'operacional'))
 
@@ -131,7 +155,7 @@ def get_memory_state():
 def save_human_feedback(
     event_id: int,
     llm_classification: str,
-    llm_priority: str, # Adicione se você planeja armazenar a prioridade original do LLM
+    llm_priority: str, 
     human_classification: str,
     human_priority: str,
     comment: str = None
@@ -164,3 +188,83 @@ def get_feedback_for_event_type(llm_classification: str, limit: int = 10):
          cursor.execute("SELECT * FROM feedback_humano WHERE llm_classification = ? ORDER BY timestamp DESC LIMIT ?", (llm_classification, limit))
          
          return [dict(row) for row in cursor.fetchall()]
+     
+def add_documentos(filename, caminho_do_arquivo):
+    
+    try:
+
+        timestamp = datetime.datetime.now().isoformat()
+
+        with open(caminho_do_arquivo, 'rb') as f:
+            pdf_binario = f.read()
+
+        with connect_db() as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute("INSERT INTO documentos (filename, origem, conteudo, timestamp) VALUES (?,?,?,?)", (filename, caminho_do_arquivo, sqlite3.Binary(pdf_binario), timestamp))
+
+            return "inserido com sucesso"
+        
+    except FileNotFoundError:
+
+        return f"Erro: o arquivo {filename} não foi encontrado"
+
+    except Exception as e:
+
+        return e
+
+def get_documentos_por_id(id, caminho_saida):
+
+    try:
+
+        with connect_db() as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT filename, conteudo FROM documentos WHERE id = ?", (id)) 
+
+            resultado = cursor.fetchone()
+
+        if not resultado:
+
+            return False
+
+        conteudo_pdf = resultado
+
+        with open(caminho_saida, 'wb') as f:
+
+            f.write(conteudo_pdf)
+
+        return True
+    
+    except Exception as e:
+
+        return e
+    
+def get_all_documentos():
+
+    try:
+
+        with connect_db() as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT id, filename FROM documentos") 
+
+            resultado = cursor.fetchall()
+
+            if not resultado:
+
+                return False
+            
+            for id, nome in resultado:
+
+                print(f"ID: {id}, Nome: {nome}")
+                print("------------------------------")
+
+            return resultado
+    
+    except Exception as e:
+
+        return e
