@@ -4,6 +4,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..")))
 
 from fastapi import APIRouter, UploadFile, File
+from typing import List
 from src.backend.controllers import (
     controller_estado,
     controller_audio,
@@ -24,7 +25,7 @@ async def human_feedback(feedback: Feedback):
     return await controller_feedback.submit_feedback(feedback)
 
 @router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: List[UploadFile] = File(...)):
     return await controller_upload.upload_file(file)
 
 @router.post("/evento-texto")
