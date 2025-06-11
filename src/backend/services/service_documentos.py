@@ -3,7 +3,7 @@ import aiofiles
 
 from fastapi import UploadFile, File
 from typing import List, Dict
-from src.backend.db.db import add_documentos
+from src.backend.db.db import add_documentos, get_all_documentos
 
 UPLOAD_DIR = "../uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -31,13 +31,29 @@ async def salvar_arquivo(files: List[UploadFile] = File(...)) -> List[Dict]:
                 add_documentos(file.filename, file_location)
 
                 uploaded_files_info.append({"filename": file.filename, "status": "Arquivo enviado com sucesso."})
-
+                
             except Exception as e:
 
-                return e
+                return [{"filename": file.filename, "error": e}]
             
     except Exception as e:
 
         return e
 
     return uploaded_files_info
+
+def ver_todos_os_documentos():
+
+    documentos = get_all_documentos()
+
+    try : 
+
+        if not documentos:
+
+            return False
+
+        return documentos
+    
+    except Exception as e:
+
+        return e

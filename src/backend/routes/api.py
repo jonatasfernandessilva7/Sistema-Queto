@@ -6,12 +6,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..
 from fastapi import APIRouter, UploadFile, File
 from typing import List
 from src.backend.controllers import (
+    controller_documentos,
     controller_estado,
     controller_audio,
     controller_cluster,
     controller_evento_texto,
-    controller_upload,
-    controller_feedback
+    controller_feedback,
+    controller_analise_de_documentos
 )
 from src.IA.modelos import Evento
 from src.IA.services.feedback import Feedback
@@ -26,7 +27,7 @@ async def human_feedback(feedback: Feedback):
 
 @router.post("/upload")
 async def upload_file(file: List[UploadFile] = File(...)):
-    return await controller_upload.upload_file(file)
+    return await controller_documentos.upload_file(file)
 
 @router.post("/evento-texto")
 async def receber_evento(evento: Evento):
@@ -35,6 +36,14 @@ async def receber_evento(evento: Evento):
 @router.post("/evento-audio")
 async def receber_audio():
     return await controller_audio.receber_audio()
+
+@router.get("/analise-documentos")
+async def analise_de_documentos():
+    return await controller_analise_de_documentos.analisar_pdf_local()
+
+@router.get("/documentos")
+def ver_documentos():
+    return controller_documentos.ver_todos_documentos()
 
 @router.get("/eventos-clusterizados")
 def eventos_clusterizados(k: int):
