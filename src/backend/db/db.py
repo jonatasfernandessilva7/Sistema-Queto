@@ -268,3 +268,28 @@ def get_all_documentos():
     except Exception as e:
 
         return e
+
+def get_all_relatorios():
+
+    try:
+        with connect_db() as conn:
+            cursor = conn.cursor()
+
+            # Seleciona as colunas que você quer retornar
+            cursor.execute("SELECT id, documento_id, relatorio , timestamp FROM relatorios ORDER BY timestamp DESC")
+
+            rows = cursor.fetchall()
+
+            if not rows:
+                return []  # Retorna uma lista vazia se não houver relatórios
+
+            # Converte os resultados em uma lista de dicionários
+            relatorios = []
+            for row in rows:
+                relatorios.append(dict(row))  # row_factory=sqlite3.Row facilita isso
+
+            return relatorios
+
+    except Exception as e:
+        print(f"Erro ao buscar todos os relatórios: {e}")
+        raise

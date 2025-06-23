@@ -12,7 +12,8 @@ from src.backend.controllers import (
     controller_cluster,
     controller_evento_texto,
     controller_feedback,
-    controller_analise_de_documentos
+    controller_analise_de_documentos,
+    controller_relatorios
 )
 from src.IA.modelos import Evento
 from src.IA.services.feedback import Feedback
@@ -40,6 +41,10 @@ async def receber_audio():
 @router.get("/analise-documentos")
 async def analise_de_documentos():
     return await controller_analise_de_documentos.analisar_pdf_local()
+
+@router.get("/ver-relatorios")
+def ver_relatorios():
+    return controller_relatorios.get_relatorios()
 
 @router.get("/documentos")
 def ver_documentos():

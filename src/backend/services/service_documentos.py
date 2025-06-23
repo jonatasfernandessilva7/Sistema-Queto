@@ -57,3 +57,13 @@ def ver_todos_os_documentos():
     except Exception as e:
 
         return e
+
+def delete_documento_by_id(document_id: int) -> bool:
+
+    global _documentos_db
+
+    original_len = len(_documentos_db)
+
+    _documentos_db = [doc for doc in _documentos_db if doc["id"] != document_id]
+
+    return len(_documentos_db) < original_len
