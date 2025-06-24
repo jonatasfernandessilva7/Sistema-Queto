@@ -214,34 +214,34 @@ def add_documentos(filename, caminho_do_arquivo):
 
         return e
 
-def get_documentos_por_id(id, caminho_saida):
+def get_documentos_by_id(doc_id: int):
+    """
+    Retrieves the filename and binary content of a document from the database.
 
+    Args:
+        doc_id: The ID of the document to retrieve.
+
+    Returns:
+        A tuple (filename, binary_content) if found, otherwise (None, None).
+    """
     try:
-
         with connect_db() as conn:
-
             cursor = conn.cursor()
-
-            cursor.execute("SELECT filename, conteudo FROM documentos WHERE id = ?", (id)) 
-
+            # Select both the filename and the column containing the binary PDF content
+            cursor.execute("SELECT filename, conteudo FROM documentos WHERE id = ?", (doc_id,))
             resultado = cursor.fetchone()
 
-        if not resultado:
-
-            return False
-
-        conteudo_pdf = resultado
-
-        with open(caminho_saida, 'wb') as f:
-
-            f.write(conteudo_pdf)
-
-        return True
-    
+        if resultado:
+            # resultado is a tuple: (filename_value, binary_content_value)
+            filename = resultado[0]
+            binary_content = resultado[1]
+            return filename, binary_content
+        else:
+            return None, None # Document not found
     except Exception as e:
+        print(f"Erro ao buscar documento no banco de dados (ID: {doc_id}): {e}")
+        return None, None # Indicate an error
 
-        return e
-    
 def get_all_documentos():
 
     try:
@@ -293,3 +293,24 @@ def get_all_relatorios():
     except Exception as e:
         print(f"Erro ao buscar todos os relatórios: {e}")
         raise
+
+def delete_document_by_id(doc_id: int) -> bool:
+    """
+    Deletes a document record from the database by its ID.
+
+    Args:
+        doc_id: The ID of the document to delete.
+
+    Returns:
+        True if the document was successfully deleted, False otherwise.
+    """
+    try:
+        with connect_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM documentos WHERE id = ?", (doc_id,))
+            conn.commit() # Commit the changes to the database
+            # Check if any row was affected (i.e., if a document was actually deleted)
+            return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Erro ao deletar documento no banco de dados (ID: {doc_id}): {e}")
+        return False
