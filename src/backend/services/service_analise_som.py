@@ -51,8 +51,11 @@ def detectar_padroes(signal, rate):
     elif np.mean(np.abs(signal)) > 1000:
         return "Grito ou alarme detectado"   
     
-    else:
+    elif energia == 0:
         return "Ambiente calmo ou desconhecido"
+
+    else:
+        return "situação não identificada"
 
 def salvar_espectrograma(signal, rate, timestamp):
 

@@ -1,6 +1,8 @@
 import os
 import sys
 
+from src.backend.controllers.controller_audio import iniciarGravacao, receber_e_processar_audio
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..")))
 
 from fastapi import APIRouter, UploadFile, File, BackgroundTasks
@@ -8,7 +10,6 @@ from typing import List
 from src.backend.controllers import (
     controller_documentos,
     controller_estado,
-    controller_audio,
     controller_cluster,
     controller_evento_texto,
     controller_feedback,
@@ -38,9 +39,13 @@ async def upload_file(file: List[UploadFile] = File(...)):
 async def receber_evento(evento: Evento):
     return await controller_evento_texto.receber_evento(evento)
 
-@router.post("/evento-audio")
+@router.post("/iniciar-gravacao")
 async def receber_audio():
-    return await controller_audio.receber_audio()
+    return await iniciarGravacao()
+
+@router.post("/parar-gravacao")
+async def parar_gravacao():
+    return await receber_e_processar_audio()
 
 @router.get("/analise-documentos")
 async def analise_de_documentos():
@@ -54,13 +59,8 @@ def ver_relatorios():
 def ver_documentos():
     return controller_documentos.ver_todos_documentos()
 
-@router.get("/documentos/{doc_id}") # Changed {id} to {doc_id} for consistency
+@router.get("/documentos/{doc_id}")
 def view_doc_id(doc_id: int, background_tasks: BackgroundTasks):
-    """
-    API endpoint to view a document by its ID.
-    Receives BackgroundTasks from FastAPI to handle temporary file cleanup.
-    """
-    # Pass background_tasks to the controller
     return controller_documentos.ver_documento_pelo_id(doc_id, background_tasks)
 
 @router.get("/eventos-clusterizados")

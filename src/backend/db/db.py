@@ -227,20 +227,18 @@ def get_documentos_by_id(doc_id: int):
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
-            # Select both the filename and the column containing the binary PDF content
             cursor.execute("SELECT filename, conteudo FROM documentos WHERE id = ?", (doc_id,))
             resultado = cursor.fetchone()
 
         if resultado:
-            # resultado is a tuple: (filename_value, binary_content_value)
             filename = resultado[0]
             binary_content = resultado[1]
             return filename, binary_content
         else:
-            return None, None # Document not found
+            return None, None
     except Exception as e:
         print(f"Erro ao buscar documento no banco de dados (ID: {doc_id}): {e}")
-        return None, None # Indicate an error
+        return None, None
 
 def get_all_documentos():
 
@@ -275,18 +273,16 @@ def get_all_relatorios():
         with connect_db() as conn:
             cursor = conn.cursor()
 
-            # Seleciona as colunas que você quer retornar
             cursor.execute("SELECT id, documento_id, relatorio , timestamp FROM relatorios ORDER BY timestamp DESC")
 
             rows = cursor.fetchall()
 
             if not rows:
-                return []  # Retorna uma lista vazia se não houver relatórios
+                return []
 
-            # Converte os resultados em uma lista de dicionários
             relatorios = []
             for row in rows:
-                relatorios.append(dict(row))  # row_factory=sqlite3.Row facilita isso
+                relatorios.append(dict(row))
 
             return relatorios
 
@@ -308,9 +304,35 @@ def delete_document_by_id(doc_id: int) -> bool:
         with connect_db() as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM documentos WHERE id = ?", (doc_id,))
-            conn.commit() # Commit the changes to the database
-            # Check if any row was affected (i.e., if a document was actually deleted)
+            conn.commit()
             return cursor.rowcount > 0
     except Exception as e:
         print(f"Erro ao deletar documento no banco de dados (ID: {doc_id}): {e}")
         return False
+
+
+def save_report(documento_id: int, report_content: bytes) -> int:
+    """
+    Saves a new report to the 'relatorios' table.
+
+    Args:
+        documento_id: The ID of the document associated with this report.
+        report_content: The binary content of the report (e.g., a generated PDF or text).
+
+    Returns:
+        The ID of the newly inserted report, or -1 if an error occurred.
+    """
+    try:
+        with connect_db() as conn:
+            cursor = conn.cursor()
+            timestamp = datetime.datetime.now().isoformat()
+
+            cursor.execute(
+                "INSERT INTO relatorios (documento_id, relatorio, timestamp) VALUES (?, ?, ?)",
+                (documento_id, sqlite3.Binary(report_content), timestamp)
+            )
+            conn.commit()
+            return cursor.lastrowid  
+    except Exception as e:
+        print(f"Erro ao salvar relatório: {e}")
+        return -1
