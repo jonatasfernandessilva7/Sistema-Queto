@@ -28,10 +28,6 @@ def resposta_reativa(evento: Evento) -> str:
 
 def planejamento_deliberativo(evento: Evento) -> list[str]:
 
-    """
-    Cria um plano de ação detalhado com base no tipo de evento.
-    """
-
     if evento.tipo == "falha_sistema":
 
         return [
@@ -61,12 +57,6 @@ def planejamento_deliberativo(evento: Evento) -> list[str]:
         return ["Monitorar a situação e coletar dados adicionais para análise."]
 
 async def gerar_resposta_llama_api(prompt: str) -> str:
-
-    """
-    Utiliza a API do LLaMA (via Groq) para gerar uma resposta baseada em um prompt.
-    Agora é assíncrona e usa 'await'.
-    """
-
     try:
 
         resposta = await llama_api_call(prompt)

@@ -10,7 +10,7 @@ from src.backend.routes import api
 #from src.backend.db.initialize_db import initialize_app
 # a linha acima só deve ser descomentada caso o banco tenha que ser reinicializado
 
-app = FastAPI(title="Queto System - AI System CyberCrisis Management")
+app = FastAPI(title="Queto System - Sistema de IA para Gerenciamento de Crises")
 
 #initialize_app()
 # a linha acima só deve ser descomentada caso o banco tenha que ser reinicializado

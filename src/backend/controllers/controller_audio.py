@@ -18,8 +18,11 @@ from src.IA.services.service_resposta import resposta_reativa, planejamento_deli
 from src.IA.aprendizado import classificar_evento
 from src.IA.services.service_relatorios import gerar_relatorio_llama, salvar_relatorio
 from src.backend.services.service_email_utils import enviar_email_com_anexos
+from src.backend.services.service_analise_de_sentimentos import analisar_sentimento
 
 load_dotenv()
+
+sentimento = None
 
 async def iniciarGravacao():
     gravacao = gravar_audio_microfone()
@@ -30,8 +33,6 @@ async def iniciarGravacao():
     return gravacao
 
 async def receber_e_processar_audio():
-
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
     caminho_temp = stop_recording_continuous()
 
@@ -73,9 +74,25 @@ async def receber_e_processar_audio():
         detalhes_evento["espectrograma_path"] = espectrograma_path
 
         texto_falado = reconhecer_fala(caminho_temp)
+        print(texto_falado)
+
+        resultado_sentimento = analisar_sentimento(texto_falado)
+        if "erro" in resultado_sentimento:
+            sentimento_str = f"Erro: {resultado_sentimento['erro']}"
+        else:
+            sentimento_str = f"{resultado_sentimento['sentimento']} (polaridade={resultado_sentimento['polaridade']:.2f})"
+
+        detalhes_evento["sentimento"] = sentimento_str
+
+        print(sentimento)
+
         detalhes_evento["texto_falado"] = texto_falado
 
+        print(detalhes_evento)
+
         tipo_evento_detectado = await classificar_evento(detalhes_evento)
+
+        print("finalmente aqui")
 
         evento = Evento(
             tipo=tipo_evento_detectado,
@@ -87,7 +104,7 @@ async def receber_e_processar_audio():
 
         resposta = resposta_reativa(evento)
         plano = planejamento_deliberativo(evento)
-        prioridade = await classificar_evento(evento)  # Use o evento
+        prioridade = await classificar_evento(evento)
         similaridade_msg, evento_similar = comparar_com_eventos_passados(evento)
 
         relatorio = await gerar_relatorio_llama(evento, resposta, plano, prioridade)
@@ -102,11 +119,13 @@ async def receber_e_processar_audio():
             "relatorio": relatorio,
             "similaridade": similaridade_msg,
             "evento_similar": evento_similar,
-            "espectrograma": espectrograma_path
+            "espectrograma": espectrograma_path,
+            "sentimento": sentimento
         }
         return retorno
 
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Arquivo de áudio não encontrado após gravação.")
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=f"Erro durante o processamento do áudio: {e}")

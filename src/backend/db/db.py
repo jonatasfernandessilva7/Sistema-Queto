@@ -67,7 +67,7 @@ def create_tables():
 
         cursor.execute (
             '''
-                CREATE TABLE IF NOT EXISTS relatorios (
+                CREATE TABLE IF NOT EXISTS analise_de_documentos (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     documento_id INTEGER,
                     relatorio BLOB NOT NULL,
@@ -215,15 +215,6 @@ def add_documentos(filename, caminho_do_arquivo):
         return e
 
 def get_documentos_by_id(doc_id: int):
-    """
-    Retrieves the filename and binary content of a document from the database.
-
-    Args:
-        doc_id: The ID of the document to retrieve.
-
-    Returns:
-        A tuple (filename, binary_content) if found, otherwise (None, None).
-    """
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
@@ -273,7 +264,7 @@ def get_all_relatorios():
         with connect_db() as conn:
             cursor = conn.cursor()
 
-            cursor.execute("SELECT id, documento_id, relatorio , timestamp FROM relatorios ORDER BY timestamp DESC")
+            cursor.execute("SELECT id, documento_id, relatorio , timestamp FROM analise_de_documentos ORDER BY timestamp DESC")
 
             rows = cursor.fetchall()
 
@@ -291,15 +282,6 @@ def get_all_relatorios():
         raise
 
 def delete_document_by_id(doc_id: int) -> bool:
-    """
-    Deletes a document record from the database by its ID.
-
-    Args:
-        doc_id: The ID of the document to delete.
-
-    Returns:
-        True if the document was successfully deleted, False otherwise.
-    """
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
@@ -312,23 +294,13 @@ def delete_document_by_id(doc_id: int) -> bool:
 
 
 def save_report(documento_id: int, report_content: bytes) -> int:
-    """
-    Saves a new report to the 'relatorios' table.
-
-    Args:
-        documento_id: The ID of the document associated with this report.
-        report_content: The binary content of the report (e.g., a generated PDF or text).
-
-    Returns:
-        The ID of the newly inserted report, or -1 if an error occurred.
-    """
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
             timestamp = datetime.datetime.now().isoformat()
 
             cursor.execute(
-                "INSERT INTO relatorios (documento_id, relatorio, timestamp) VALUES (?, ?, ?)",
+                "INSERT INTO analise_de_documentos (documento_id, relatorio, timestamp) VALUES (?, ?, ?)",
                 (documento_id, sqlite3.Binary(report_content), timestamp)
             )
             conn.commit()
