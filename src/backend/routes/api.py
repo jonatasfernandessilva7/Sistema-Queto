@@ -1,7 +1,6 @@
 import os
 import sys
-
-from src.backend.controllers.controller_audio import iniciarGravacao, receber_e_processar_audio
+import uuid
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..")))
 
@@ -18,6 +17,7 @@ from src.backend.controllers import (
 )
 from src.IA.modelos import Evento
 from src.IA.services.feedback import Feedback
+from src.backend.controllers.controller_audio import iniciarGravacao, receber_e_processar_audio
 
 router = APIRouter(
     prefix="/v1"
@@ -41,7 +41,8 @@ async def receber_evento(evento: Evento):
 
 @router.post("/iniciar-gravacao")
 async def receber_audio():
-    return await iniciarGravacao()
+    request_idempotency_key = str(uuid.uuid4())
+    return await iniciarGravacao(idempotency_key=request_idempotency_key)
 
 @router.post("/parar-gravacao")
 async def parar_gravacao():
