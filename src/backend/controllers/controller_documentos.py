@@ -2,6 +2,9 @@ from pathlib import Path
 
 from fastapi import UploadFile, HTTPException, File, BackgroundTasks
 from typing import List
+
+from fastapi.responses import JSONResponse
+
 from src.backend.services.service_documentos import salvar_arquivo, ver_todos_os_documentos, ver_documentos_por_id, \
     delete_document_service
 
@@ -13,7 +16,7 @@ async def upload_file(file: List[UploadFile] = File(...) ):
 
         resultado = await salvar_arquivo(file)
 
-        return resultado
+        return JSONResponse(content={ "status":200, "arquivos": resultado})
     
     except Exception as e:
 

@@ -1,6 +1,8 @@
 import os
 import sys
 
+from fastapi.responses import JSONResponse
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..")))
 
 from fastapi import HTTPException
@@ -15,7 +17,9 @@ def eventos_clusterizados(k: int = 3):
 
     try:
 
-        return clusterizar_eventos(historico, k)
+        cluster = clusterizar_eventos(historico, k)
+
+        return JSONResponse(content={"status":200, "eventos": cluster})
     
     except Exception as e:
         

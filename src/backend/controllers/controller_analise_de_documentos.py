@@ -73,4 +73,4 @@ async def analisar_pdf_local() -> JSONResponse:
             })
 
     # 2. Retorna a lista de todos os resultados APÓS o loop
-    return JSONResponse(content={"message": "Análise de PDFs concluída.", "results": all_results})
+    return JSONResponse(content={"status":200, "message": "Análise de PDFs concluída.", "results": all_results})

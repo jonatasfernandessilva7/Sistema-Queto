@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 
 from dotenv import load_dotenv
 from fastapi import HTTPException
-
+from fastapi.responses import JSONResponse
 from src.IA.modelos import Evento
 from src.IA.memoria import (
     adicionar_evento_historico,
@@ -15,7 +15,7 @@ from src.IA.memoria import (
 from src.IA.services.service_resposta import resposta_reativa, planejamento_deliberativo
 from src.IA.aprendizado import classificar_evento
 from src.IA.services.service_relatorios import gerar_relatorio_llama, salvar_relatorio
-from src.backend.services.service_email_utils import enviar_email_com_anexos, enviar_email_relatorio
+from src.backend.services.service_email_utils import enviar_email_relatorio
 
 load_dotenv()
 
@@ -38,7 +38,8 @@ async def receber_evento(evento: Evento):
         arquivo = salvar_relatorio(relatorio, timestamp, prioridade)  
         enviar_email_relatorio(arquivo, os.getenv("EMAIL_DESTINO"))  
 
-        return {
+        return JSONResponse(content={
+            "status":200,
             "resposta_reativa": resposta,
             "plano_acao": plano,
             "prioridade": prioridade,
@@ -46,7 +47,7 @@ async def receber_evento(evento: Evento):
             "similaridade": similaridade_msg,
             "evento_similar": evento_similar,
             "timestamp": timestamp
-        }
+        })
     
     except Exception as e:
         
