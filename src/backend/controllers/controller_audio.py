@@ -13,6 +13,7 @@ from src.IA.memoria import (
     adicionar_evento_historico,
     comparar_com_eventos_passados
 )
+from src.backend.utils.idenpotenceFuncionUtils import idempotency
 from src.backend.services.service_microfone import gravar_audio_microfone, reconhecer_fala, stop_recording_continuous
 from src.IA.services.service_resposta import resposta_reativa, planejamento_deliberativo
 from src.IA.aprendizado import classificar_evento
@@ -24,7 +25,8 @@ load_dotenv()
 
 sentimento = None
 
-async def iniciarGravacao():
+@idempotency
+async def iniciarGravacao(**kwargs):
     gravacao = gravar_audio_microfone()
 
     if gravacao is None:
