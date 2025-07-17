@@ -21,7 +21,7 @@ def idempotency(func):
             result = func(*args, **kwargs)
 
         process_requests[idempotency_key] = result
-        print(f"Requisição processada com a chave: {idempotency_key}")
+        print(f"Request process with key: {idempotency_key}")
         return result
 
     return wrapper

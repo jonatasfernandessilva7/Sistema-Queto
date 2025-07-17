@@ -1,7 +1,7 @@
-from src.IA.services.service_resposta import gerar_resposta_llama_api
-from src.backend.db.db import get_feedback_for_event_type
+from src.IA.services.AiAnswerService import gerar_resposta_llama_api
+from src.backend.repository.GenericsRepository import get_feedback_for_event_type
 
-async def classificar_evento(detalhes_evento):
+async def AiClassifyEvent(detalhes_evento):
 
     prompt = f"""
     You are an AI specialized in corporate risks and crises...

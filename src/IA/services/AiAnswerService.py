@@ -1,12 +1,12 @@
-from src.IA.modelos import Evento
-from src.IA.memoria import atualizar_status_sistema
-from src.backend.services.service_llama_api import llama_api_call
+from src.IA.AiModels import EventModel
+from src.IA.AiMemory import atualizar_status_sistema
+from src.backend.utils.ConnectionWithLlamaApiGroqUtils import llama_api_call
 
-def resposta_reativa(evento: Evento) -> str:
+def AiReactiveAnswer(evento: EventModel) -> str:
 
-    if evento.tipo == "falha_sistema":
+    if evento.type == "falha_sistema":
 
-        sistema = evento.detalhes.get("sistema")
+        sistema = evento.details.get("sistema")
 
         if sistema: 
 
@@ -18,7 +18,7 @@ def resposta_reativa(evento: Evento) -> str:
             
             return "Alerta: Falha de sistema detectada, mas o sistema específico não foi identificado. Iniciando protocolo de contingência geral."
         
-    elif evento.tipo == "ataque_cibernetico":
+    elif evento.type == "ataque_cibernetico":
 
         return "Ataque cibernético detectado! Acionando time de segurança e bloqueando tráfego suspeito."
     
@@ -26,9 +26,9 @@ def resposta_reativa(evento: Evento) -> str:
 
         return "Evento recebido. Aguardando análise para resposta reativa."
 
-def planejamento_deliberativo(evento: Evento) -> list[str]:
+def AiDeliberativePlanning(evento: EventModel) -> list[str]:
 
-    if evento.tipo == "falha_sistema":
+    if evento.type == "falha_sistema":
 
         return [
             "Notificar equipe de TI sobre a falha do sistema.",
@@ -36,7 +36,7 @@ def planejamento_deliberativo(evento: Evento) -> list[str]:
             "Gerar relatório preliminar para a diretoria."
         ]
     
-    elif evento.tipo == "ataque_cibernetico":
+    elif evento.type == "ataque_cibernetico":
 
         return [
             "Isolar sistemas afetados para conter a propagação.",
@@ -44,7 +44,7 @@ def planejamento_deliberativo(evento: Evento) -> list[str]:
             "Comunicar stakeholders internos e externos conforme o plano de comunicação de crise."
         ]
     
-    elif evento.tipo == "alerta_generico": 
+    elif evento.type == "alerta_generico":
 
         return [
             "Coletar mais informações sobre o alerta.",

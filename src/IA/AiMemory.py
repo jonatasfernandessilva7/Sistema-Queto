@@ -3,13 +3,13 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import KMeans
-from src.IA.modelos import Evento
-from src.backend.db.db import (
+from src.IA.AiModels import EventModel
+from src.backend.repository.GenericsRepository import (
     add_event_history, get_event_history, get_memory_state,
     update_system_status, get_system_status
 )
 
-def comparar_com_eventos_passados(evento_atual: Evento):
+def AiCompareEventsHistory(evento_atual: EventModel):
     historico = get_event_history()
 
     if not historico:
@@ -32,10 +32,10 @@ def comparar_com_eventos_passados(evento_atual: Evento):
 
     return "Nenhum evento semelhante encontrado.", None
 
-def obter_historico_eventos():
+def getEventHistory():
     return get_event_history()
 
-def adicionar_evento_historico(evento_com_timestamp: dict):
+def AiAddingEventHistory(evento_com_timestamp: dict):
 
     event_data = evento_com_timestamp['evento']
     timestamp = evento_com_timestamp['timestamp']
@@ -44,7 +44,7 @@ def adicionar_evento_historico(evento_com_timestamp: dict):
 def obter_estado_memoria():
     return get_memory_state()
 
-def clusterizar_eventos(historico, k=3):
+def clusterEvents(historico, k=3):
     if len(historico) < k:
         return {"erro": f"Número de clusters {k} maior que eventos disponíveis."}
 

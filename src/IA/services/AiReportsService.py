@@ -10,15 +10,14 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib import colors
-from src.IA.modelos import Evento
-from src.backend.services.service_llama_api import llama_api_call
-from src.backend.controllers.controller_relatorios import salva_os_relatorios
-from src.backend.controllers.controller_analise_de_documentos import analisar_pdf_local
+from src.IA.AiModels import EventModel
+from src.backend.utils.ConnectionWithLlamaApiGroqUtils import llama_api_call
+from src.backend.controllers.DocumentAnalysisController import pdf_local_analysis
 
 ARCHIVES_FOR_CONTEXT_PATH = "../../uploads"
-ANALYSIS_MODULE = analisar_pdf_local()
+ANALYSIS_MODULE = pdf_local_analysis()
 
-async def gerar_relatorio_llama(evento: Evento, resposta: str, plano: list, prioridade: str) -> str:
+async def AiGeneretadReportsWithLlama(evento: EventModel, resposta: str, plano: list, prioridade: str) -> str:
 
     prompt = f"""
 You are an expert in corporate risk and crisis management. Based on the information provided, generate a **detailed risk and crisis report in Portuguese**, following the **ABNT formatting rules**.
@@ -32,9 +31,9 @@ The report should be:
 Use the following structured data:
 
 {{
-  "event": "{evento.tipo}",
-  "source": "{evento.origem}",
-  "details": {json.dumps(evento.detalhes, ensure_ascii=False)},
+  "event": "{evento.type}",
+  "source": "{evento.origin}",
+  "details": {json.dumps(evento.details, ensure_ascii=False)},
   "reactive_response": "{resposta}",
   "action_plan": {json.dumps(plano, ensure_ascii=False)},
   "priority": "{prioridade}"
@@ -85,7 +84,7 @@ def get_color_by_prioridade(prioridade: str):
 
     return cores.get(prioridade, colors.gray)
 
-def salvar_relatorio(relatorio_conteudo: str, timestamp: str, prioridade: str) -> str:
+def AiSaveReports(relatorio_conteudo: str, timestamp: str, prioridade: str) -> str:
 
     pasta = os.path.join(os.path.dirname(__file__), "..", "relatorios/novos_relatorios")
     os.makedirs(pasta, exist_ok=True)

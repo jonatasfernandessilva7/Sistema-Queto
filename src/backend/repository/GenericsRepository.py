@@ -1,19 +1,12 @@
 import sqlite3
 import json
-import os
 import datetime
 
-def connect_db():
-
-    conn = sqlite3.connect(os.getenv('DATABASE_NAME'))
-    conn.row_factory = sqlite3.Row
-
-    return conn
+from src.backend.database.ConnectionWithDatabase import connect_db
 
 def create_tables():
 
     with connect_db() as conn:
-
         cursor = conn.cursor()
 
         cursor.execute(
@@ -79,54 +72,38 @@ def create_tables():
 
         cursor.execute("INSERT OR IGNORE INTO sistemas (nome, status) VALUES (?,?)", ('servidor_auth', 'operacional'))
         cursor.execute("INSERT OR IGNORE INTO sistemas (nome, status) VALUES (?,?)", ('banco_dados', 'operacional'))
-
         conn.commit()
 
 def get_system_status(system_name: str) -> str:
 
     with connect_db() as conn:
-
         cursor = conn.cursor()
-
         cursor.execute("SELECT status FROM sistemas WHERE nome = ?", (system_name))
-
         result = cursor.fetchone()
-
         return['status'] if result else "desconhecido"
     
 def update_system_status(system_name: str, status: str):
 
     with connect_db() as conn:
-
         cursor = conn.cursor()
-
         cursor.execute("INSERT TO REPLACE INTO sistemas (nome, status) VALUES (?,?)", (system_name, status))
-
         conn.commit()
 
 def add_event_history(event_data: dict, timestamp: str):
 
     with connect_db() as conn:
-
         cursor = conn.cursor()
-
         cursor.execute(
             "INSERT INTO historico_eventos (timestamp, tipo, origem, detalhes) VALUES (?, ?, ?, ?)",
             (timestamp, event_data['tipo'], event_data['origem'], json.dumps(event_data['detalhes']))
         )
-
         conn.commit()
-
         return cursor.lastrowid
 
 def get_event_history():
 
-    with connect_db() as conn:
-
         with connect_db() as conn:
-
             cursor = conn.cursor()
-           
             cursor.execute("SELECT id, timestamp, tipo, origem, detalhes FROM historico_eventos ORDER BY timestamp ASC")
 
             rows = cursor.fetchall()
@@ -136,21 +113,16 @@ def get_event_history():
                 event_dict = dict(row)
                 event_dict['detalhes'] = json.loads(event_dict['detalhes'])
                 history.append({"id": event_dict['id'], "evento": event_dict, "timestamp": event_dict['timestamp']})
-                
-        return history
+            return history
     
 def get_memory_state():
 
     with connect_db() as conn:
-
         cursor = conn.cursor()
-
         cursor.execute("SELECT nome, status FROM sistemas")
-
-        sistemas = {row['nome']: row['status'] for row in cursor.fetchall()}
-        historico = get_event_history()
-        
-        return {"sistemas": sistemas, "historico_eventos": historico}
+        systems = {row['nome']: row['status'] for row in cursor.fetchall()}
+        history = get_event_history()
+        return {"sistemas": systems, "historico_eventos": history}
     
 def save_human_feedback(
     event_id: int,
@@ -183,117 +155,104 @@ def save_human_feedback(
 def get_feedback_for_event_type(llm_classification: str, limit: int = 10):
      
      with connect_db() as conn:
-         
          cursor = conn.cursor()
          cursor.execute("SELECT * FROM feedback_humano WHERE llm_classification = ? ORDER BY timestamp DESC LIMIT ?", (llm_classification, limit))
-         
          return [dict(row) for row in cursor.fetchall()]
      
 def add_documentos(filename, caminho_do_arquivo):
     
     try:
-
         timestamp = datetime.datetime.now().isoformat()
 
         with open(caminho_do_arquivo, 'rb') as f:
             pdf_binario = f.read()
 
         with connect_db() as conn:
-
             cursor = conn.cursor()
-
             cursor.execute("INSERT INTO documentos (filename, origem, conteudo, timestamp) VALUES (?,?,?,?)", (filename, caminho_do_arquivo, sqlite3.Binary(pdf_binario), timestamp))
-
             return "inserido com sucesso"
         
     except FileNotFoundError:
-
         return f"Erro: o arquivo {filename} não foi encontrado"
 
     except Exception as e:
-
         return e
 
 def get_documentos_by_id(doc_id: int):
+
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT filename, conteudo FROM documentos WHERE id = ?", (doc_id,))
-            resultado = cursor.fetchone()
+            resultQuery = cursor.fetchone()
 
-        if resultado:
-            filename = resultado[0]
-            binary_content = resultado[1]
+        if resultQuery:
+            filename = resultQuery[0]
+            binary_content = resultQuery[1]
             return filename, binary_content
         else:
             return None, None
+
     except Exception as e:
-        print(f"Erro ao buscar documento no banco de dados (ID: {doc_id}): {e}")
+        print(f"error in query execution (ID: {doc_id}): {e}")
         return None, None
 
 def get_all_documentos():
 
     try:
-
         with connect_db() as conn:
-
             cursor = conn.cursor()
-
             cursor.execute("SELECT id, filename FROM documentos") 
 
-            resultado = cursor.fetchall()
-
-            if not resultado:
-
+            resultQuery = cursor.fetchall()
+            if not resultQuery:
                 return False
             
-            for id, nome in resultado:
-
+            for id, nome in resultQuery:
                 print(f"ID: {id}, Nome: {nome}")
                 print("------------------------------")
-
-            return resultado
+            return resultQuery
     
     except Exception as e:
-
         return e
 
-def get_all_relatorios():
+def getAllReports():
 
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
-
             cursor.execute("SELECT id, documento_id, relatorio , timestamp FROM analise_de_documentos ORDER BY timestamp DESC")
-
             rows = cursor.fetchall()
 
             if not rows:
                 return []
 
-            relatorios = []
-            for row in rows:
-                relatorios.append(dict(row))
+            reports = []
 
-            return relatorios
+            for row in rows:
+                reports.append(dict(row))
+            return reports
 
     except Exception as e:
-        print(f"Erro ao buscar todos os relatórios: {e}")
+        print(f"Error find reports: {e}")
         raise
 
 def delete_document_by_id(doc_id: int) -> bool:
+
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM documentos WHERE id = ?", (doc_id,))
             conn.commit()
             return cursor.rowcount > 0
+
     except Exception as e:
-        print(f"Erro ao deletar documento no banco de dados (ID: {doc_id}): {e}")
+        print(f"Error in deleted data (ID: {doc_id}): {e}")
         return False
 
 
-def save_report(documento_id: int, report_content: bytes) -> int:
+def saveReport(documento_id: int, report_content: bytes) -> int:
+
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
@@ -304,7 +263,8 @@ def save_report(documento_id: int, report_content: bytes) -> int:
                 (documento_id, sqlite3.Binary(report_content), timestamp)
             )
             conn.commit()
-            return cursor.lastrowid  
+            return cursor.lastrowid
+
     except Exception as e:
-        print(f"Erro ao salvar relatório: {e}")
+        print(f"Error in save report: {e}")
         return -1
