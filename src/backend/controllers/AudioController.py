@@ -23,7 +23,10 @@ from src.backend.services.MicrophoneService import (
     audioRecognize, 
     stopContinuousRecording
 )
-from src.backend.services.EmotionAnalysisService import emotionAnalysis
+
+from langchain_core.messages import HumanMessage, AIMessage
+# from src.backend.services.EmotionAnalysisService import emotionAnalysis
+from src.agents.environment_organizational_agents.EmotionAgent import app as emotion_agent_app
 
 from src.IA.services.AiAnswerService import (
     AiReactiveAnswer, 
@@ -42,7 +45,7 @@ from src.IA.AiModels import EventModel
 
 load_dotenv()
 
-emotion = None
+# emotion = None
 
 @idempotency
 async def startAudioMeeting(**kwargs):
@@ -94,18 +97,47 @@ async def receivesAndProcessAudio():
         textPresentsInAudio = audioRecognize(temporaryPath)
         print(textPresentsInAudio)
 
-        emotionAnalysisResult = emotionAnalysis(textPresentsInAudio)
-        if "error" in emotionAnalysisResult:
-            emotionToString = f"Error: {emotionAnalysisResult['error']}"
-        else:
-            emotionToString = f"{emotionAnalysisResult['emotion']} (polarity={emotionAnalysisResult['polarity']:.2f})"
+        emotionToString = "Error: could not analyze emotion"
+        if textPresentsInAudio:
+            agent_input_message  = HumanMessage(
+                content=f"Please analyze the emotion of the following audio transcript: '{textPresentsInAudio}'"
+            )
+            initial_agent_state = {"messages": [agent_input_message]}
+            print(initial_agent_state,"inicio estado\n")
 
+            agent_response = None
+            async for s in emotion_agent_app.astream(initial_agent_state):
+                print(s, "s\n")
+                if "llm" in s and s["llm"]["messages"]:
+                    last_llm_message = s["llm"]["messages"][-1]
+                    if isinstance(last_llm_message, AIMessage):
+                        if not last_llm_message.tool_calls:
+                            agent_response = last_llm_message.content
+                            print(f"Final agent response captured: {agent_response}")
+                            break
+                elif "__end__" in s and s["__end__"]["messages"]:
+                    final_messages = s["__end__"]["messages"]
+                    print(final_messages)
+                    if final_messages and isinstance(final_messages[-1], AIMessage):
+                        print("no segundo if")
+                        agent_response = final_messages[-1].content
+                        print(agent_response)
+                        break
+            print("cheguei aqui\n")
+
+            if agent_response:
+                emotionToString = agent_response
+            else:
+                emotionToString = "Agent did not provide an emotion analysis result."
+
+        print("\n", emotionToString)
+        '''
         eventDetails["emotion"] = emotionToString
         eventDetails["text_presents_in_audio"] = textPresentsInAudio
-        EventDetectedTipy = await AiClassifyEvent(eventDetails)
+        eventDetectedTipy = await AiClassifyEvent(eventDetails)
 
         event = EventModel(
-            type=EventDetectedTipy,
+            type=eventDetectedTipy,
             origin="microphone_local",
             details=eventDetails
         )
@@ -120,20 +152,21 @@ async def receivesAndProcessAudio():
         aiReport = await AiGeneretadReportsWithLlama(event, aiReactiveAnswer, aiDeliberativePlann, priority)
         reportFile = AiSaveReports(aiReport, timestamp, priority)
         await sendEmailWithAttachments([reportFile, temporaryPath], os.getenv("DESTINATION_EMAIL"))
+        '''''
 
         return JSONResponse(
             content=
             {
             "status": 200,
             "detected_pattern": pattern,
-            "AI_reactive_answer": aiReactiveAnswer,
-            "AI_deliberative_plan": aiDeliberativePlann,
-            "priority": priority,
-            "AI_report": aiReport,
-            "similarity": similarMessage,
-            "similar_event": similarEvent,
+            #"AI_reactive_answer": aiReactiveAnswer,
+            #"AI_deliberative_plan": aiDeliberativePlann,
+            #"priority": priority,
+            #"AI_report": aiReport,
+            #"similarity": similarMessage,
+            #"similar_event": similarEvent,
             "spectrogram": spectrogramPath,
-            "emotion": emotion
+            "emotion": emotionToString
             }
         )
 
