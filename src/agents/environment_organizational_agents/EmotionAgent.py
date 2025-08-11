@@ -12,14 +12,13 @@ from typing import (
 
 from langchain_core.messages import (
     BaseMessage,
-    ToolMessage,
-    AIMessage
+    ToolMessage
 )
 from langchain_core.tools import tool
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, END
 
-from src.backend.services.EmotionAnalysisService import emotionAnalysis
+from src.AiServices.services.AiEmotionAnalysisService import emotionAnalysis
 
 GROQ_API_KEY = os.getenv("API_KEY")
 
