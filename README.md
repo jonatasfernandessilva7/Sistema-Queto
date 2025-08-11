@@ -56,7 +56,7 @@ uvicorn server:app --reload --port 8080
 
 ```bash
 cd src
-cd Frontend
+cd frontend
 cd System-Queto
 ```
 
