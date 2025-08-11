@@ -1,5 +1,8 @@
 from textblob import TextBlob
 
+"""
+This function calculate level emotion, positive or negative whit based on polarity voice
+"""
 def emotionAnalysis(texto: str):
     try:
         if not texto or not texto.strip():
@@ -20,3 +23,5 @@ def emotionAnalysis(texto: str):
 
     except Exception as e:
         return {"error": f"Error in emotion analysis: {e}"}
+
+"""This function calculate level emotion, based on nauve"""

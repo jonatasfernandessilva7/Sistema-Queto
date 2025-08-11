@@ -1,0 +1,25 @@
+Tentativa de acesso não autorizado detectada no servidor central.
+Tráfego incomum identificado na rede interna durante a madrugada.
+Credenciais de administrador foram comprometidas.
+Detectado malware em estações de trabalho de múltiplos departamentos.
+Sistema apresentou instabilidade após atualização não programada.
+Servidor de e-mails enviando mensagens não solicitadas.
+Tentativa de phishing direcionada a executivos da empresa.
+Falha na autenticação multifator para usuários críticos.
+Aumento súbito de requisições vindas de endereços IP suspeitos.
+Backup diário não foi realizado conforme o agendamento.
+Chaves de API expostas em repositório público.
+Usuário relatou comportamento anômalo no sistema de gestão financeira.
+Serviços críticos fora do ar devido a ataque de negação de serviço.
+Ransomware criptografou arquivos de servidores principais.
+Tráfego de rede elevado indicando possível ataque de botnet.
+Conexão remota não autorizada detectada em servidor de banco de dados.
+Acesso físico não autorizado à sala de servidores.
+Suspeita de vazamento de dados de clientes.
+Alterações não autorizadas em registros de configuração de firewall.
+Dispositivo IoT da rede corporativa comprometido.
+Logs indicam tentativa de exploração de vulnerabilidade conhecida.
+Funcionário recebeu solicitação suspeita para transferir fundos.
+Credenciais de acesso foram compartilhadas indevidamente.
+Detecção de software espião instalado em dispositivos móveis corporativos.
+Desativação não autorizada de antivírus em múltiplas máquinas.
