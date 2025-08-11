@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..")))
 
 from fastapi import HTTPException
-from src.IA.AiMemory import (
+from src.AiServices.AiMemory import (
     clusterEvents,
     getEventHistory
 )

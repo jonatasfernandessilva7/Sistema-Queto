@@ -17,8 +17,8 @@ from src.backend.controllers import (
     ReportsController
 )
 
-from src.IA.AiModels import EventModel
-from src.IA.services.feedback import Feedback
+from src.AiServices.AiModels import EventModel
+from src.AiServices.services.AIFeedbackService import Feedback
 from src.backend.controllers.AudioController import startAudioMeeting, receivesAndProcessAudio
 
 router = APIRouter(

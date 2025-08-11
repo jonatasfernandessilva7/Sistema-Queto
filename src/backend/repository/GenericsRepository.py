@@ -95,7 +95,7 @@ def add_event_history(event_data: dict, timestamp: str):
         cursor = conn.cursor()
         cursor.execute(
             "INSERT INTO historico_eventos (timestamp, tipo, origem, detalhes) VALUES (?, ?, ?, ?)",
-            (timestamp, event_data['tipo'], event_data['origem'], json.dumps(event_data['detalhes']))
+            (timestamp, event_data['type'], event_data['origin'], json.dumps(event_data['details']))
         )
         conn.commit()
         return cursor.lastrowid

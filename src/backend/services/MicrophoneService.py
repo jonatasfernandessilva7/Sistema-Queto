@@ -69,19 +69,3 @@ def stopContinuousRecording():
         return finalPathAudio
     else:
         return "Error: audio file not found"
-
-
-def audioRecognize(audioPath:str):
-
-    try:
-        with open(audioPath, "rb") as file:
-            transcription = groq_client.audio.transcriptions.create(
-                file=file,
-                model="whisper-large-v3-turbo",
-                language="pt",
-                temperature=0.0
-            )
-            return transcription.text
-
-    except Exception as e:
-        return f"Error in recognize audio: {e}"

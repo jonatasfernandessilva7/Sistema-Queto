@@ -7,14 +7,14 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 from dotenv import load_dotenv
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
-from src.IA.AiModels import EventModel
-from src.IA.AiMemory import (
+from src.AiServices.AiModels import EventModel
+from src.AiServices.AiMemory import (
     AiAddingEventHistory,
     AiCompareEventsHistory,
 )
-from src.IA.services.AiAnswerService import AiReactiveAnswer, AiDeliberativePlanning
-from src.IA.AiApprenticeship import AiClassifyEvent
-from src.IA.services.AiReportsService import AiGeneretadReportsWithLlama, AiSaveReports
+from src.AiServices.services.AiAnswerService import AiReactiveAnswer, AiDeliberativePlanning
+from src.AiServices.AiApprenticeship import AiClassifyEvent
+from src.AiServices.services.AiReportsService import AiGeneretadReportsWithLlama, AiSaveReports
 from src.backend.utils.EmailUtils import sendEmailReportLessAttachment
 
 load_dotenv()

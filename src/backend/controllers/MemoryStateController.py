@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..
 
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
-from src.IA.AiMemory import (
+from src.AiServices.AiMemory import (
     obter_estado_memoria,
 )
 def memoState():

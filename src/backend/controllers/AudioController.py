@@ -12,15 +12,12 @@ from dotenv import load_dotenv
 from src.backend.utils.idenpotenceFuncionUtils import idempotency
 from src.backend.utils.EmailUtils import sendEmailWithAttachments
 
-from src.backend.services.AudioAnalysisService import (
-    audioAnalysisWithFft,
-    audioAnalysisLowPassFilter,
-    audioAnalysisDetectPatterns,
-    saveSpectogram
+from src.AiServices.services.AiAudioAnalysisService import (
+    audioAnalysisDetectWordsInText,
+    audioRecognize 
 )
 from src.backend.services.MicrophoneService import (
     recordMicrophoneAudio, 
-    audioRecognize, 
     stopContinuousRecording
 )
 
@@ -28,20 +25,20 @@ from langchain_core.messages import HumanMessage, AIMessage
 # from src.backend.services.EmotionAnalysisService import emotionAnalysis
 from src.agents.environment_organizational_agents.EmotionAgent import app as emotion_agent_app
 
-from src.IA.services.AiAnswerService import (
+from src.AiServices.services.AiAnswerService import (
     AiReactiveAnswer, 
     AiDeliberativePlanning
 )
-from src.IA.services.AiReportsService import (
+from src.AiServices.services.AiReportsService import (
     AiGeneretadReportsWithLlama, 
     AiSaveReports
 )
-from src.IA.AiMemory import (
+from src.AiServices.AiMemory import (
     AiAddingEventHistory,
     AiCompareEventsHistory
 )
-from src.IA.AiApprenticeship import AiClassifyEvent
-from src.IA.AiModels import EventModel
+from src.AiServices.AiApprenticeship import AiClassifyEvent
+from src.AiServices.AiModels import EventModel
 
 load_dotenv()
 
@@ -70,7 +67,6 @@ async def receivesAndProcessAudio():
         rate, signal = wavfile.read(temporaryPath)
         if len(signal.shape) > 1:
             signal = signal[:, 0]
-        analysisResult = audioAnalysisWithFft(temporaryPath)
 
         eventDetails = {
             "audio_path": temporaryPath,
@@ -78,24 +74,13 @@ async def receivesAndProcessAudio():
             "sample_rate": str(rate)
         }
 
-        if "peak_frequency" in analysisResult and "peak_amplitude" in analysisResult:
-            eventDetails["peak_frequency"] = str(analysisResult["peak_frequency"])
-            eventDetails["peak_amplitude"] = str(analysisResult["peak_amplitude"])
-            eventDetails["status"] = analysisResult.get("status", "desconhecido")
-        elif "erro" in analysisResult:
-            eventDetails["error_audio_analysis"] = analysisResult["error"]
-
-        signal_filtrado = audioAnalysisLowPassFilter(signal, rate)
-        pattern = audioAnalysisDetectPatterns(signal_filtrado, rate)
-
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")  # Gerar timestamp aqui
-        spectrogramPath = saveSpectogram(signal, rate, timestamp)
-
-        eventDetails["detected_pattern"] = pattern
-        eventDetails["spectrogram_path"] = spectrogramPath
 
         textPresentsInAudio = audioRecognize(temporaryPath)
         print(textPresentsInAudio)
+
+        pattern = audioAnalysisDetectWordsInText(textPresentsInAudio)
+        eventDetails["detected_pattern"] = pattern
 
         emotionToString = "Error: could not analyze emotion"
         if textPresentsInAudio:
@@ -163,7 +148,6 @@ async def receivesAndProcessAudio():
             "AI_report": aiReport,
             "similarity": similarMessage,
             "similar_event": similarEvent,
-            "spectrogram": spectrogramPath,
             "emotion": emotionToString
             }
         )

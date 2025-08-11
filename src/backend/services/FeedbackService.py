@@ -1,5 +1,5 @@
 from src.backend.repository.GenericsRepository import save_human_feedback
-from src.IA.services.feedback import Feedback
+from src.AiServices.services.AIFeedbackService import Feedback
 
 async def service_submit_feedback(feedback: Feedback):
 
