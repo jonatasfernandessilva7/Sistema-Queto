@@ -1,6 +1,8 @@
 .env
 __pycache__
 .vscode
+.idea
+audios
 memoria.db
 uploads
 relatorios
