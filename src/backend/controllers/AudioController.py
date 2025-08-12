@@ -14,7 +14,8 @@ from src.backend.utils.EmailUtils import sendEmailWithAttachments
 
 from src.AiServices.services.AiAudioAnalysisService import (
     audioAnalysisDetectWordsInText,
-    audioRecognize 
+    audioRecognize,
+    extracting_characteristics
 )
 from src.backend.services.MicrophoneService import (
     recordMicrophoneAudio, 
@@ -74,13 +75,16 @@ async def receivesAndProcessAudio():
             "sample_rate": str(rate)
         }
 
+        num_voices = extracting_characteristics(temporaryPath)
+        eventDetails['num_voices'] = str(num_voices)
+
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")  # Gerar timestamp aqui
 
         textPresentsInAudio = audioRecognize(temporaryPath)
         print(textPresentsInAudio)
 
-        pattern = audioAnalysisDetectWordsInText(textPresentsInAudio)
-        eventDetails["detected_pattern"] = pattern
+        correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis = audioAnalysisDetectWordsInText(textPresentsInAudio)
+        eventDetails["correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis"] = correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis
 
         emotionToString = "Error: could not analyze emotion"
         if textPresentsInAudio:
@@ -128,8 +132,13 @@ async def receivesAndProcessAudio():
 
         AiAddingEventHistory({"event": event.model_dump(), "timestamp": timestamp})
 
-        if "não encontrei nenhuma correspondencia" in pattern:
-            return JSONResponse({"status": 200,"message": "sem crises detectadas"})
+        if "não encontrei nenhuma correspondencia" in correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis:
+            return JSONResponse({
+                "status": 200,
+                "message": "sem crises detectadas",
+                "emotion": emotionToString,
+                "num_voices": str(num_voices)
+            })
 
         aiReactiveAnswer = AiReactiveAnswer(event)
         aiDeliberativePlann = AiDeliberativePlanning(event)
@@ -144,14 +153,15 @@ async def receivesAndProcessAudio():
             content=
             {
             "status": 200,
-            "detected_pattern": pattern,
+            "correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis": correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis,
             "AI_reactive_answer": aiReactiveAnswer,
             "AI_deliberative_plan": aiDeliberativePlann,
             "priority": priority,
             "AI_report": aiReport,
             "similarity": similarMessage,
             "similar_event": similarEvent,
-            "emotion": emotionToString
+            "emotion": emotionToString,
+            "num_voices": str(num_voices)
             }
         )
 
