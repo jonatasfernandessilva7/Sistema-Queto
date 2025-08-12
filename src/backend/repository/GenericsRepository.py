@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import datetime
+import os
 
 from src.backend.database.ConnectionWithDatabase import connect_db
 
@@ -243,6 +244,7 @@ def delete_document_by_id(doc_id: int) -> bool:
         with connect_db() as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM documentos WHERE id = ?", (doc_id,))
+            os.remove(doc_id)
             conn.commit()
             return cursor.rowcount > 0
 
