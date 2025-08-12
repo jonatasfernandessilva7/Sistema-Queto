@@ -128,6 +128,9 @@ async def receivesAndProcessAudio():
 
         AiAddingEventHistory({"event": event.model_dump(), "timestamp": timestamp})
 
+        if "não encontrei nenhuma correspondencia" in pattern:
+            return JSONResponse({"status": 200,"message": "sem crises detectadas"})
+
         aiReactiveAnswer = AiReactiveAnswer(event)
         aiDeliberativePlann = AiDeliberativePlanning(event)
         priority = await AiClassifyEvent(event)
