@@ -13,6 +13,8 @@ def audioAnalysisDetectWordsInText(text: str) -> str:
 
     text_lower = text.lower()
     correspondence = [phrases for phrases in phrases_crisis if phrases_crisis.lower() in text_lower]
+    if not correspondence:
+        return f"não encontrei nenhuma correspondencia"
     return correspondence
 
 def audioRecognize(audioPath:str):
