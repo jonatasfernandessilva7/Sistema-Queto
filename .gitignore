@@ -6,3 +6,4 @@ audios
 memoria.db
 uploads
 relatorios
+*.log
