@@ -14,12 +14,12 @@ from src.backend.controllers import (
     TextEventController,
     FeedbackController,
     DocumentAnalysisController,
-    ReportsController
+    ReportsController,
+    AudioController
 )
 
 from src.AiServices.AiModels import EventModel
 from src.AiServices.services.AIFeedbackService import Feedback
-from src.backend.controllers.AudioController import startAudioMeeting, receivesAndProcessAudio
 
 router = APIRouter(
     prefix="/v1"
@@ -41,14 +41,20 @@ async def upload_file(file: List[UploadFile] = File(...)):
 async def receivesEvent(evento: EventModel):
     return await TextEventController.receiveEvent(evento)
 
+# record on backend
 @router.post("/u/start-recording")
 async def receivesAudioMeeting():
     request_idempotency_key = str(uuid.uuid4())
-    return await startAudioMeeting(idempotency_key=request_idempotency_key)
+    return await AudioController.startAudioMeeting(idempotency_key=request_idempotency_key)
 
 @router.post("/u/stop-recording")
 async def stopAudioMeeting():
-    return await receivesAndProcessAudio()
+    return await AudioController.receivesAndProcessAudio()
+
+#receives on frontend
+@router.post("/u/process-audio/")
+async def processAudio(audio_file: UploadFile = File(...)):
+    return await AudioController.receivesAndProcessAudioUploaded(audio_file)
 
 @router.get("/u/docs-analysis")
 async def docsAnalysis():
