@@ -24,8 +24,8 @@ from src.backend.services.MicrophoneService import (
 )
 
 from langchain_core.messages import HumanMessage, AIMessage
-# from src.backend.services.EmotionAnalysisService import emotionAnalysis
-from src.agents.environment_organizational_agents.EmotionAgent import app as emotion_agent_app
+#from src.agents.environment_organizational_agents_tools.EmotionAgent import app as emotion_agent_app
+from src.agents.environment_organizational_agent import outers_agent
 
 from src.AiServices.services.AiAnswerService import (
     AiReactiveAnswer, 
@@ -86,40 +86,19 @@ async def receivesAndProcessAudio():
 
         correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis = audioAnalysisDetectWordsInText(textPresentsInAudio)
         eventDetails["correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis"] = correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis
-
+        agent_response = None
         emotionToString = "Error: could not analyze emotion"
         if textPresentsInAudio:
-            agent_input_message  = HumanMessage(
-                content=f"""Please analyze the emotion of the following audio transcript: '{textPresentsInAudio}'. 
-                **After analysis, state the identified emotion and polarity clearly in your final response.**"""
+            agent_response = await outers_agent.arun(
+                f"Analise a emoção do seguinte texto e me retorne a emoção e polaridade identificadas: '{textPresentsInAudio}'"
             )
-            initial_agent_state = {"messages": [agent_input_message]}
-            print(initial_agent_state,"inicio estado\n")
+            emotionToString = agent_response
+        print("cheguei aqui\n")
 
-            agent_response = None
-            async for s in emotion_agent_app.astream(initial_agent_state):
-                print(s, "s\n")
-                if "llm" in s and s["llm"]["messages"]:
-                    last_llm_message = s["llm"]["messages"][-1]
-                    if isinstance(last_llm_message, AIMessage):
-                        if not last_llm_message.tool_calls:
-                            agent_response = last_llm_message.content
-                            print(f"Final agent response captured: {agent_response}")
-                            break
-                elif "__end__" in s and s["__end__"]["messages"]:
-                    final_messages = s["__end__"]["messages"]
-                    print(final_messages)
-                    if final_messages and isinstance(final_messages[-1], AIMessage):
-                        print("no segundo if")
-                        agent_response = final_messages[-1].content
-                        print(agent_response)
-                        break
-            print("cheguei aqui\n")
-
-            if agent_response:
-                emotionToString = agent_response
-            else:
-                emotionToString = "Agent did not provide an emotion analysis result."
+        if agent_response:
+            emotionToString = agent_response
+        else:
+            emotionToString = "Agent did not provide an emotion analysis result."
 
         eventDetails['emotion'] = emotionToString
         eventDetails['text_presents_in_audio'] = textPresentsInAudio
@@ -217,6 +196,7 @@ async def receivesAndProcessAudioUploaded(audio_file: UploadFile = File(...)):
             print(initial_agent_state, "inicio estado\n")
 
             agent_response = None
+            '''s is equal state'''
             async for s in emotion_agent_app.astream(initial_agent_state):
                 print(s, "s\n")
                 if "llm" in s and s["llm"]["messages"]:

@@ -100,6 +100,8 @@ Produce a **formal, technical, and visually** organized document, suitable for c
     - Professional, objective, and confident.
 
     - Based on evidence and technical standards.
+
+**OBSERVAÇÃO**: Consider the full context of everything said. Even if there's some wording related to cybercrisis, if the context doesn't indicate a possible cybercrisis, don't raise the possibility of a crisis.
 """
     
     try:
