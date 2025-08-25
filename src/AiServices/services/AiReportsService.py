@@ -46,7 +46,7 @@ Produce a **formal, technical, and visually** organized document, suitable for c
 - Consider the analysis summary as the organization's baseline context.
 
 - Assess the level of organizational maturity and the ability to respond to risks and crises based on:
-    - ISO 22325:2022
+    - ISO 22325:2016
     - Article: A maturity model for enterprise risk management {A_MATURITY_MODEL}.
 
 **Report Requirements:**
