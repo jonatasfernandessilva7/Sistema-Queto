@@ -3,16 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="./style.css">
+  <link rel="icon" href="./public/img/FAVICON.png" type="image/png">
   <title>Desktop Frontend</title>
 </head>
 <body>
-    <div class="container">
-        <h2>Análise de Áudio</h2>
-        <button id="startBtn">Gravar Áudio</button>
-        <button id="stopBtn" disabled>Parar e Enviar</button>
-        <pre id="result"></pre>
+  <nav class="navbar">
+    <button onclick="showScreen('audio')">Análise de Áudio</button>
+    <button onclick="showScreen('docs')">Ver Documentos</button>
+    <button onclick="showScreen('feedback')">Enviar Feedback</button>
+  </nav>
+  <div class="container">
+    <!-- Tela de Áudio -->
+    <div id="audioScreen" class="screen">
+      <h2>Análise de Áudio</h2>
+      <button id="startBtn">Gravar Áudio</button>
+      <button id="stopBtn" disabled>Parar e Enviar</button>
+      <pre id="result"></pre>
     </div>
-    <script src="./recorder.js"></script>
-    <script src="./renderer.js"></script>
+    <!-- Tela de Documentos -->
+    <div id="docsScreen" class="screen" style="display:none;">
+      <h2>Documentos</h2>
+      <ul id="docsList"></ul>
+    </div>
+    <!-- Tela de Feedback -->
+    <div id="feedbackScreen" class="screen" style="display:none;">
+      <h2>Enviar Feedback</h2>
+      <form id="feedbackForm" onsubmit="sendFeedback(event)">
+        <textarea id="feedbackText" rows="5" placeholder="Digite seu feedback..." required></textarea><br>
+        <button type="submit">Enviar</button>
+      </form>
+      <div id="feedbackResult"></div>
+    </div>
+  </div>
+  <script src="./recorder.js"></script>
+  <script src="./renderer.js"></script>
 </body>
 </html>
