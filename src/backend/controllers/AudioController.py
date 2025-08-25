@@ -2,6 +2,7 @@ import datetime
 import os
 import sys
 import shutil
+import aiofiles
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
@@ -133,6 +134,7 @@ async def receivesAndProcessAudio():
             content=
             {
             "status": 200,
+            "message": "crise detectada, enviando email",
             "correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis": correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis,
             "AI_reactive_answer": aiReactiveAnswer,
             "AI_deliberative_plan": aiDeliberativePlann,
@@ -154,6 +156,9 @@ async def receivesAndProcessAudio():
 async def receivesAndProcessAudioUploaded(audio_file: UploadFile = File(...)):
     if not audio_file.filename.endswith(".wav"):
         raise HTTPException(status_code=400, detail="O arquivo deve ser no formato WAV.")
+    
+    print("Recebendo arquivo:", audio_file.filename)
+    print("Content type:", audio_file.content_type)
 
     # Gera um caminho temporário seguro para salvar o arquivo
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -161,15 +166,18 @@ async def receivesAndProcessAudioUploaded(audio_file: UploadFile = File(...)):
 
     try:
         # Salva o arquivo enviado em um local temporário
-        with open(temporaryPath, "wb") as buffer:
-            shutil.copyfileobj(audio_file.file, buffer)
+        async with aiofiles.open(temporaryPath, "wb") as buffer:
+            contents = await audio_file.read()
+            print("Tamanho do arquivo recebido:", len(contents))
+            await buffer.write(contents)
 
         if not os.path.exists(temporaryPath) or os.path.getsize(temporaryPath) == 0:
             raise HTTPException(status_code=500, detail="Arquivo de áudio gerado está vazio ou não existe.")
-
+        print("Arquivo salvo em:", temporaryPath)
         rate, signal = wavfile.read(temporaryPath)
         if len(signal.shape) > 1:
             signal = signal[:, 0]
+        print("Taxa de amostragem:", rate)
 
         eventDetails = {
             "audio_path": temporaryPath,
@@ -185,41 +193,19 @@ async def receivesAndProcessAudioUploaded(audio_file: UploadFile = File(...)):
 
         correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis = audioAnalysisDetectWordsInText(textPresentsInAudio)
         eventDetails["correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis"] = correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis
-
+        agent_response = None
         emotionToString = "Error: could not analyze emotion"
         if textPresentsInAudio:
-            agent_input_message = HumanMessage(
-                content=f"""Please analyze the emotion of the following audio transcript: '{textPresentsInAudio}'.
-                **After analysis, state the identified emotion and polarity clearly in your final response.**"""
+            agent_response = await outers_agent.arun(
+                f"Analise a emoção do seguinte texto e me retorne a emoção e polaridade identificadas: '{textPresentsInAudio}'"
             )
-            initial_agent_state = {"messages": [agent_input_message]}
-            print(initial_agent_state, "inicio estado\n")
+            emotionToString = agent_response
+        print("cheguei aqui\n")
 
-            agent_response = None
-            '''s is equal state'''
-            async for s in emotion_agent_app.astream(initial_agent_state):
-                print(s, "s\n")
-                if "llm" in s and s["llm"]["messages"]:
-                    last_llm_message = s["llm"]["messages"][-1]
-                    if isinstance(last_llm_message, AIMessage):
-                        if not last_llm_message.tool_calls:
-                            agent_response = last_llm_message.content
-                            print(f"Final agent response captured: {agent_response}")
-                            break
-                elif "__end__" in s and s["__end__"]["messages"]:
-                    final_messages = s["__end__"]["messages"]
-                    print(final_messages)
-                    if final_messages and isinstance(final_messages[-1], AIMessage):
-                        print("no segundo if")
-                        agent_response = final_messages[-1].content
-                        print(agent_response)
-                        break
-            print("cheguei aqui\n")
-
-            if agent_response:
-                emotionToString = agent_response
-            else:
-                emotionToString = "Agent did not provide an emotion analysis result."
+        if agent_response:
+            emotionToString = agent_response
+        else:
+            emotionToString = "Agent did not provide an emotion analysis result."
 
         eventDetails['emotion'] = emotionToString
         eventDetails['text_presents_in_audio'] = textPresentsInAudio
@@ -227,7 +213,7 @@ async def receivesAndProcessAudioUploaded(audio_file: UploadFile = File(...)):
 
         event = EventModel(
             type=eventDetectedType,
-            origin="frontend_audio",
+            origin="microphone_local",
             details=eventDetails
         )
 
@@ -254,6 +240,7 @@ async def receivesAndProcessAudioUploaded(audio_file: UploadFile = File(...)):
             content=
             {
             "status": 200,
+            "message": "crise detectada, enviando email",
             "correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis": correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis,
             "AI_reactive_answer": aiReactiveAnswer,
             "AI_deliberative_plan": aiDeliberativePlann,
@@ -266,9 +253,7 @@ async def receivesAndProcessAudioUploaded(audio_file: UploadFile = File(...)):
             }
         )
     except FileNotFoundError:
+        print("Erro detalhado:", e)
         raise HTTPException(status_code=404, detail="Audio file not found after saving.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error in audio process: {e}")
-    finally:
-        if os.path.exists(temporaryPath):
-            os.remove(temporaryPath)

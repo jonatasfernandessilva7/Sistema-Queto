@@ -52,7 +52,7 @@ async def stopAudioMeeting():
     return await AudioController.receivesAndProcessAudio()
 
 #receives on frontend
-@router.post("/u/process-audio/")
+@router.post("/u/process-audio")
 async def processAudio(audio_file: UploadFile = File(...)):
     return await AudioController.receivesAndProcessAudioUploaded(audio_file)
 
