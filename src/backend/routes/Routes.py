@@ -33,7 +33,7 @@ def delete_doc_id(doc_id):
 async def human_feedback(feedback: Feedback):
     return await FeedbackController.submit_feedback(feedback)
 
-@router.post("/u/upload")
+@router.post("/u/docs")
 async def upload_file(file: List[UploadFile] = File(...)):
     return await DocumentController.upload_file(file)
 

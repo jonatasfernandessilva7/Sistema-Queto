@@ -52,11 +52,22 @@ async function fetchDocs() {
     list.innerHTML = '';
     docs.forEach(doc => {
       const li = document.createElement('li');
-      li.id = `${doc.id}`
-      li.textContent = `${doc.filename || 'Sem nome'}`;
+      li.id = `${doc.id}`;
+      // Nome do documento
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = `${doc.filename || 'Sem nome'}`;
+      li.appendChild(nameSpan);
+      // Botão de visualizar (olho)
+      const viewBtn = document.createElement('button');
+      viewBtn.innerHTML = '&#128065;'; // emoji olho
+      viewBtn.title = 'Visualizar documento';
+      viewBtn.onclick = () => {
+        window.open(`http://localhost:8080/v1/u/docs/${doc.id}`, '_blank');
+      };
+      li.appendChild(viewBtn);
+      // Botão de deletar
       const delBtn = document.createElement('button');
       delBtn.textContent = 'Deletar';
-      delBtn.style.marginLeft = '12px';
       delBtn.onclick = async () => {
         if (confirm('Deseja realmente deletar este documento?')) {
           await deleteDoc(doc.id);
@@ -65,6 +76,36 @@ async function fetchDocs() {
       li.appendChild(delBtn);
       list.appendChild(li);
     });
+// Upload de novo documento
+document.getElementById('uploadDocBtn').onclick = function () {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.pdf,.doc,.docx,.txt';
+  input.onchange = async function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    const list = document.getElementById('docsList');
+    list.innerHTML = 'Enviando...';
+    try {
+      const response = await fetch('http://localhost:8080/v1/u/docs', {
+        method: 'POST',
+        body: formData
+      });
+      if (response.ok) {
+        showModalBar('Documento enviado com sucesso!');
+        fetchDocs();
+      } else {
+        showModalBar('Erro ao enviar documento.');
+        list.innerHTML = 'Erro ao enviar documento.';
+      }
+    } catch (err) {
+      list.innerHTML = 'Erro ao enviar documento.' + err;
+    }
+  };
+  input.click();
+};
   } catch (err) {
     list.innerHTML = 'Erro ao buscar documentos.';
   }
@@ -81,13 +122,26 @@ async function deleteDoc(docId) {
       },
     });
     if (response.ok) {
-      fetchDocs(); // Atualiza lista após deletar
+      showModalBar('Documento apagado com sucesso!');
+      fetchDocs(); 
     } else {
+      showModalBar('Erro ao apagar documento.');
       list.innerHTML = 'Erro ao deletar documento.';
     }
   } catch (err) {
+    showModalBar('Erro ao apagar documento.');
     list.innerHTML = 'Erro ao deletar documento.';
   }
+}
+
+function showModalBar(msg) {
+  const modal = document.getElementById('modalBar');
+  if (!modal) return;
+  modal.textContent = msg;
+  modal.style.display = 'block';
+  setTimeout(() => {
+    modal.style.display = 'none';
+  }, 2000);
 }
 
 async function sendFeedback(event) {
