@@ -1,11 +1,12 @@
 import os
+import asyncio
 
 from langchain.agents import initialize_agent, AgentType, Tool
 from langchain_core.messages import HumanMessage
 from langchain_groq import ChatGroq
 from src.agents.environment_organizational_agents_tools.EmotionAgent import app as emotion_agent_app
 
-async def invoke_emotion_agent_as_tool(text_to_analyze: str) -> str:
+async def invoke_emotion_agent_as_tool_async(text_to_analyze: str) -> str:
     """
     Invokes the LangGraph emotion analysis agent with the provided text.
     This function acts as the bridge between the main agent and the tool agent.
@@ -22,6 +23,12 @@ async def invoke_emotion_agent_as_tool(text_to_analyze: str) -> str:
         print(f"### Internal Agent of Emotion Final Answer: {last_message.content} ###")
         return last_message.content
     return "Error: The emotion analysis agent did not return a valid response."
+
+def invoke_emotion_agent_as_tool(text_to_analyze: str) -> str:
+    """
+    Wrapper síncrono para o Tool do LangChain.
+    """
+    return asyncio.run(invoke_emotion_agent_as_tool_async(text_to_analyze))
 
 emotion_agent_tool_wrapper = Tool(
     name="EmotionAnalysisAgent",

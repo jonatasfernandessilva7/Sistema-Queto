@@ -1,8 +1,7 @@
 import datetime
 import os
 import sys
-import shutil
-import aiofiles
+import asyncio
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
@@ -151,61 +150,58 @@ async def receivesAndProcessAudio():
         raise HTTPException(status_code=404, detail="audio file not found after recording.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error in audio process: {e}")
-    
 
-async def receivesAndProcessAudioUploaded(audio_file: UploadFile = File(...)):
-    if not audio_file.filename.endswith(".wav"):
-        raise HTTPException(status_code=400, detail="O arquivo deve ser no formato WAV.")
-    
-    print("Recebendo arquivo:", audio_file.filename)
-    print("Content type:", audio_file.content_type)
+def sync_audio_processing(audio_path):
+    """Processamento de áudio pesado em CPU (síncrono)."""
+    rate, signal = wavfile.read(audio_path)
+    if len(signal.shape) > 1:
+        signal = signal[:, 0]
 
-    # Gera um caminho temporário seguro para salvar o arquivo
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    temporaryPath = f"temp_audio_{timestamp}.wav"
+    num_voices = extracting_characteristics(audio_path)
 
+    return {
+        "rate": rate,
+        "signal": signal,
+        "num_voices": num_voices
+    }    
+
+async def receivesAndProcessAudioUploaded(audio_path, q=None):
     try:
-        # Salva o arquivo enviado em um local temporário
-        async with aiofiles.open(temporaryPath, "wb") as buffer:
-            contents = await audio_file.read()
-            print("Tamanho do arquivo recebido:", len(contents))
-            await buffer.write(contents)
+        if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
+            if q:
+                await q.put(HTTPException(status_code=500, detail="Audio file not found or is empty."))
+            return
 
-        if not os.path.exists(temporaryPath) or os.path.getsize(temporaryPath) == 0:
-            raise HTTPException(status_code=500, detail="Arquivo de áudio gerado está vazio ou não existe.")
-        print("Arquivo salvo em:", temporaryPath)
-        rate, signal = wavfile.read(temporaryPath)
-        if len(signal.shape) > 1:
-            signal = signal[:, 0]
+        print("Arquivo salvo em:", audio_path)
+
+        loop = asyncio.get_running_loop()
+        audio_data = await loop.run_in_executor(None, lambda: sync_audio_processing(audio_path))
+
+        rate = audio_data["rate"]
+        signal = audio_data["signal"]
+        num_voices = audio_data["num_voices"]
+
         print("Taxa de amostragem:", rate)
 
         eventDetails = {
-            "audio_path": temporaryPath,
+            "audio_path": audio_path,
             "time_in_seconds": str(len(signal) / rate),
-            "sample_rate": str(rate)
+            "sample_rate": str(rate),
+            "num_voices": str(num_voices)
         }
-
-        num_voices = extracting_characteristics(temporaryPath)
-        eventDetails['num_voices'] = str(num_voices)
-
-        textPresentsInAudio = audioRecognize(temporaryPath)
-        print(textPresentsInAudio)
+        
+        textPresentsInAudio = audioRecognize(audio_path)
+        print("Texto reconhecido:", textPresentsInAudio)
 
         correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis = audioAnalysisDetectWordsInText(textPresentsInAudio)
         eventDetails["correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis"] = correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis
-        agent_response = None
+        
         emotionToString = "Error: could not analyze emotion"
         if textPresentsInAudio:
             agent_response = await outers_agent.arun(
                 f"Analise a emoção do seguinte texto e me retorne a emoção e polaridade identificadas: '{textPresentsInAudio}'"
             )
-            emotionToString = agent_response
-        print("cheguei aqui\n")
-
-        if agent_response:
-            emotionToString = agent_response
-        else:
-            emotionToString = "Agent did not provide an emotion analysis result."
+            emotionToString = agent_response or "Agent did not provide an emotion analysis result."
 
         eventDetails['emotion'] = emotionToString
         eventDetails['text_presents_in_audio'] = textPresentsInAudio
@@ -217,15 +213,18 @@ async def receivesAndProcessAudioUploaded(audio_file: UploadFile = File(...)):
             details=eventDetails
         )
 
-        AiAddingEventHistory({"event": event.model_dump(), "timestamp": timestamp})
+        AiAddingEventHistory({"event": event.model_dump(), "timestamp": datetime.datetime.now().strftime("%Y%m%d_%H%M%S")})
 
         if "não encontrei nenhuma correspondencia" in correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis:
-            return JSONResponse({
+            result = JSONResponse({
                 "status": 200,
                 "message": "sem crises detectadas",
                 "emotion": emotionToString,
                 "num_voices": str(num_voices)
             })
+            if q:
+                await q.put(result)
+            return
 
         aiReactiveAnswer = AiReactiveAnswer(event)
         aiDeliberativePlann = AiDeliberativePlanning(event)
@@ -233,27 +232,30 @@ async def receivesAndProcessAudioUploaded(audio_file: UploadFile = File(...)):
         similarMessage, similarEvent = AiCompareEventsHistory(event)
 
         aiReport = await AiGeneretadReportsWithLlama(event, aiReactiveAnswer, aiDeliberativePlann, priority)
-        reportFile = AiSaveReports(aiReport, timestamp, priority)
-        await sendEmailWithAttachments([reportFile, temporaryPath], os.getenv("DESTINATION_EMAIL"))
+        reportFile = AiSaveReports(aiReport, datetime.datetime.now().strftime("%Y%m%d_%H%M%S"), priority)
+        await sendEmailWithAttachments([reportFile, audio_path], os.getenv("DESTINATION_EMAIL"))
 
-        return JSONResponse(
-            content=
-            {
-            "status": 200,
-            "message": "crise detectada, enviando email",
-            "correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis": correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis,
-            "AI_reactive_answer": aiReactiveAnswer,
-            "AI_deliberative_plan": aiDeliberativePlann,
-            "priority": priority,
-            "AI_report": aiReport,
-            "similarity": similarMessage,
-            "similar_event": similarEvent,
-            "emotion": emotionToString,
-            "num_voices": str(num_voices)
+        result = JSONResponse(
+            content={
+                "status": 200,
+                "message": "crise detectada, enviando email",
+                "correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crise": correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis,
+                "AI_reactive_answer": aiReactiveAnswer,
+                "AI_deliberative_plan": aiDeliberativePlann,
+                "priority": priority,
+                "AI_report": aiReport,
+                "similarity": similarMessage,
+                "similar_event": similarEvent,
+                "emotion": emotionToString,
+                "num_voices": str(num_voices)
             }
         )
-    except FileNotFoundError:
-        print("Erro detalhado:", e)
-        raise HTTPException(status_code=404, detail="Audio file not found after saving.")
+        if q:
+            await q.put(result)
+        return
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error in audio process: {e}")
+        print(f"Erro detalhado: {e}")
+        if q:
+            await q.put(HTTPException(status_code=500, detail=f"Error in audio process: {e}"))
+        return

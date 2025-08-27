@@ -179,7 +179,7 @@ def add_documentos(filename, caminho_do_arquivo):
     except Exception as e:
         return e
 
-def get_documentos_by_id(doc_id: int):
+async def get_documentos_by_id(doc_id: int):
 
     try:
         with connect_db() as conn:
@@ -198,7 +198,7 @@ def get_documentos_by_id(doc_id: int):
         print(f"error in query execution (ID: {doc_id}): {e}")
         return None, None
 
-def get_all_documentos():
+async def get_all_documentos():
 
     try:
         with connect_db() as conn:
