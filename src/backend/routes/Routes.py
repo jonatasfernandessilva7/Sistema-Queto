@@ -1,11 +1,16 @@
 import os
 import sys
 import uuid
+import asyncio
+import datetime
+import aiofiles
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..")))
 
-from fastapi import APIRouter, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
 from typing import List
+from scipy.io import wavfile
+from concurrent.futures import ThreadPoolExecutor
 
 from src.backend.controllers import (
     DocumentController,
@@ -14,12 +19,14 @@ from src.backend.controllers import (
     TextEventController,
     FeedbackController,
     DocumentAnalysisController,
-    ReportsController
+    ReportsController,
+    AudioController
 )
 
 from src.AiServices.AiModels import EventModel
 from src.AiServices.services.AIFeedbackService import Feedback
-from src.backend.controllers.AudioController import startAudioMeeting, receivesAndProcessAudio
+
+executor = ThreadPoolExecutor(max_workers=4)
 
 router = APIRouter(
     prefix="/v1"
@@ -33,7 +40,7 @@ def delete_doc_id(doc_id):
 async def human_feedback(feedback: Feedback):
     return await FeedbackController.submit_feedback(feedback)
 
-@router.post("/u/upload")
+@router.post("/u/docs")
 async def upload_file(file: List[UploadFile] = File(...)):
     return await DocumentController.upload_file(file)
 
@@ -41,14 +48,38 @@ async def upload_file(file: List[UploadFile] = File(...)):
 async def receivesEvent(evento: EventModel):
     return await TextEventController.receiveEvent(evento)
 
+# record on backend
 @router.post("/u/start-recording")
 async def receivesAudioMeeting():
     request_idempotency_key = str(uuid.uuid4())
-    return await startAudioMeeting(idempotency_key=request_idempotency_key)
+    return await AudioController.startAudioMeeting(idempotency_key=request_idempotency_key)
 
 @router.post("/u/stop-recording")
 async def stopAudioMeeting():
-    return await receivesAndProcessAudio()
+    return await AudioController.receivesAndProcessAudio()
+
+#receives on frontend
+@router.post("/u/process-audio")
+async def processAudio(audio_file: UploadFile = File(...)):
+    if not audio_file.filename.endswith(".wav"):
+        raise HTTPException(status_code=400, detail="O arquivo deve ser no formato WAV.")
+    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    temporaryPath = f"temp_audio_{timestamp}.wav"
+    
+    try:
+        async with aiofiles.open(temporaryPath, "wb") as buffer:
+            while content := await audio_file.read(1024):
+                await buffer.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving file: {e}")
+    
+    q = asyncio.Queue()
+    result = await AudioController.receivesAndProcessAudioUploaded(temporaryPath, q=q)
+    os.remove(temporaryPath)
+    result_final = await q.get()
+    
+    return result_final
 
 @router.get("/u/docs-analysis")
 async def docsAnalysis():
@@ -59,12 +90,12 @@ def viewReports():
     return ReportsController.get_reports()
 
 @router.get("/u/docs")
-def viewDocs():
-    return DocumentController.viewAllDocs()
+async def viewDocs():
+    return await DocumentController.viewAllDocs()
 
 @router.get("/u/docs/{doc_id}")
-def view_doc_id(doc_id: int, background_tasks: BackgroundTasks):
-    return DocumentController.viewDocsById(doc_id, background_tasks)
+async def view_doc_id(doc_id: int, background_tasks: BackgroundTasks):
+    return await DocumentController.viewDocsById(doc_id, background_tasks)
 
 @router.get("/u/cluster-events")
 def getClusterEvents(k: int):

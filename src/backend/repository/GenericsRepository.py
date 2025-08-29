@@ -179,7 +179,7 @@ def add_documentos(filename, caminho_do_arquivo):
     except Exception as e:
         return e
 
-def get_documentos_by_id(doc_id: int):
+async def get_documentos_by_id(doc_id: int):
 
     try:
         with connect_db() as conn:
@@ -198,7 +198,7 @@ def get_documentos_by_id(doc_id: int):
         print(f"error in query execution (ID: {doc_id}): {e}")
         return None, None
 
-def get_all_documentos():
+async def get_all_documentos():
 
     try:
         with connect_db() as conn:
@@ -239,15 +239,18 @@ def getAllReports():
         raise
 
 def delete_document_by_id(doc_id: int) -> bool:
-
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
+            cursor.execute("SELECT origem FROM documentos WHERE id = ?", (doc_id,))
+            result = cursor.fetchone()
             cursor.execute("DELETE FROM documentos WHERE id = ?", (doc_id,))
-            os.remove(doc_id)
             conn.commit()
+            if result and result[0]:
+                file_path = result[0]
+                if os.path.exists(file_path):
+                    os.remove(file_path)
             return cursor.rowcount > 0
-
     except Exception as e:
         print(f"Error in deleted data (ID: {doc_id}): {e}")
         return False
