@@ -2,44 +2,68 @@ const axios = require('axios');
 
 let recorder;
 let audioStream;
+let intervalID;
 
-document.getElementById('startBtn').onclick = async function () {
-  document.getElementById('result').textContent = 'Gravando...';
+const startButton = document.getElementById('startBtn');
+const stopButton = document.getElementById('stopBtn');
+const result = document.getElementById('result');
+const audioScreen = document.getElementById('audioScreen');
+const docsScreen = document.getElementById('docsScreen');
+const feedbackScreen = document.getElementById('feedbackScreen');
+
+startButton.addEventListener('click', async function () {
+  result.textContent = 'Gravando...';
   audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const audioContext = new (window.AudioContext || window.webkitAudioContext)();
   const input = audioContext.createMediaStreamSource(audioStream);
   recorder = new Recorder(input, { numChannels: 2 });
   recorder.record();
-  document.getElementById('startBtn').disabled = true;
-  document.getElementById('stopBtn').disabled = false;
-};
 
-document.getElementById('stopBtn').onclick = function () {
+  intervalID = setInterval(()=>{
+    sendChunkAudio();
+  }, 15000);
+
+  startButton.disabled = true;
+  stopButton.disabled = false;
+});
+
+stopButton.addEventListener('click', function () {
   recorder.stop();
   audioStream.getTracks().forEach(track => track.stop());
-  recorder.exportWAV(async function (blob) {
-    document.getElementById('result').textContent = 'Processando áudio...';
+
+  sendChunkAudio();
+
+  clearInterval(intervalID);
+
+  startButton.disabled = false;
+  stopButton.disabled = true;
+});
+
+async function sendChunkAudio() {
+    recorder.exportWAV(async function (blob) {
+    result.textContent = 'Processando áudio...';
     const audio_file = new File([blob], 'gravacao.wav', { type: 'audio/wav' });
     const formData = new FormData();
     formData.append('audio_file', audio_file);
 
     try {
+      startButton.disabled = true;
       const response = await axios.post('http://localhost:8080/v1/u/process-audio', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      document.getElementById('result').textContent = JSON.stringify(response.data.message, null, 2);
+      result.textContent = JSON.stringify(response.data.message, null, 2);
     } catch (err) {
-      document.getElementById('result').textContent = 'Erro ao enviar áudio.' + err;
+      result.textContent = 'Erro ao enviar áudio.' + err;
     }
+
+    recorder.clear();
   });
-  document.getElementById('startBtn').disabled = false;
-  document.getElementById('stopBtn').disabled = true;
-};
+}
 
 function showScreen(screen) {
-  document.getElementById('audioScreen').style.display = (screen === 'audio') ? 'block' : 'none';
-  document.getElementById('docsScreen').style.display = (screen === 'docs') ? 'block' : 'none';
-  document.getElementById('feedbackScreen').style.display = (screen === 'feedback') ? 'block' : 'none';
+  audioScreen.style.display = (screen === 'audio') ? 'block' : 'none';
+  docsScreen.style.display = (screen === 'docs') ? 'block' : 'none';
+  feedbackScreen.style.display = (screen === 'feedback') ? 'block' : 'none';
   if (screen == 'docs') fetchDocs();
 }
 
@@ -76,6 +100,7 @@ async function fetchDocs() {
       li.appendChild(delBtn);
       list.appendChild(li);
     });
+
 // Upload de novo documento
 document.getElementById('uploadDocBtn').onclick = function () {
   const input = document.createElement('input');
