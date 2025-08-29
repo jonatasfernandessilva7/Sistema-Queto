@@ -21,10 +21,10 @@ async def upload_file(file: List[UploadFile] = File(...) ):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-def viewAllDocs():
+async def viewAllDocs():
 
     try:
-        result = viewAllCompanyDocuments()
+        result = await viewAllCompanyDocuments()
         if not result:
             return False
         return result
@@ -32,9 +32,9 @@ def viewAllDocs():
     except Exception as e:
         return e
 
-def viewDocsById(doc_id: int, background_tasks: BackgroundTasks):
+async def viewDocsById(doc_id: int, background_tasks: BackgroundTasks):
 
-    doc_response = viewAllCompanyDocumentsById(doc_id, background_tasks)
+    doc_response = await viewAllCompanyDocumentsById(doc_id, background_tasks)
     if not doc_response:
         raise HTTPException(status_code=404, detail="Document not found.")
     return doc_response

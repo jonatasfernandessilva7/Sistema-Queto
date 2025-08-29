@@ -46,7 +46,7 @@ Produce a **formal, technical, and visually** organized document, suitable for c
 - Consider the analysis summary as the organization's baseline context.
 
 - Assess the level of organizational maturity and the ability to respond to risks and crises based on:
-    - ISO 22325:2022
+    - ISO 22325:2016
     - Article: A maturity model for enterprise risk management {A_MATURITY_MODEL}.
 
 **Report Requirements:**
@@ -100,6 +100,8 @@ Produce a **formal, technical, and visually** organized document, suitable for c
     - Professional, objective, and confident.
 
     - Based on evidence and technical standards.
+
+**OBSERVAÇÃO**: Consider the full context of everything said. Even if there's some wording related to cybercrisis, if the context doesn't indicate a possible cybercrisis, don't raise the possibility of a crisis.
 """
     
     try:

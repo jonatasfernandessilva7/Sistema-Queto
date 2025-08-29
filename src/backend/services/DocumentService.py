@@ -35,9 +35,9 @@ async def saveDocumentsCompany(files: List[UploadFile] = File(...)) -> List[Dict
         return e
     return uploaded_files_info
 
-def viewAllCompanyDocuments():
+async def viewAllCompanyDocuments():
 
-    documents = get_all_documentos()
+    documents = await get_all_documentos()
 
     try :
         if not documents:
@@ -47,7 +47,7 @@ def viewAllCompanyDocuments():
     except Exception as e:
         return e
 
-def viewAllCompanyDocumentsById(doc_id: int, background_tasks: BackgroundTasks):
+async def viewAllCompanyDocumentsById(doc_id: int, background_tasks: BackgroundTasks):
     """
     Retrieves document content from DB, saves it temporarily, and prepares FileResponse.
 
@@ -59,7 +59,7 @@ def viewAllCompanyDocumentsById(doc_id: int, background_tasks: BackgroundTasks):
         FileResponse if successful, None otherwise.
     """
     # Get filename and binary content from the database
-    filename_from_db, pdfContent = get_documentos_by_id(doc_id)
+    filename_from_db, pdfContent = await get_documentos_by_id(doc_id)
 
     if not pdfContent:
         return None
