@@ -1,8 +1,10 @@
 const axios = require('axios');
+const { contexBridge, ipcRenderer } = require('electron');
 
 let recorder;
 let audioStream;
 let intervalID;
+let consentAccepted = false;
 
 const startButton = document.getElementById('startBtn');
 const stopButton = document.getElementById('stopBtn');
@@ -10,6 +12,11 @@ const result = document.getElementById('result');
 const audioScreen = document.getElementById('audioScreen');
 const docsScreen = document.getElementById('docsScreen');
 const feedbackScreen = document.getElementById('feedbackScreen');
+const consentScreen = document.getElementById('consentScreen');
+
+contexBridge.exposeInMainWorld('eletronAPI', {
+  saveConsent: (data) => ipcRenderer.invoke('save-consent', data),
+});
 
 startButton.addEventListener('click', async function () {
   result.textContent = 'Gravando...';
@@ -19,7 +26,7 @@ startButton.addEventListener('click', async function () {
   recorder = new Recorder(input, { numChannels: 2 });
   recorder.record();
 
-  intervalID = setInterval(()=>{
+  intervalID = setInterval(() => {
     sendChunkAudio();
   }, 15000);
 
@@ -40,7 +47,7 @@ stopButton.addEventListener('click', function () {
 });
 
 async function sendChunkAudio() {
-    recorder.exportWAV(async function (blob) {
+  recorder.exportWAV(async function (blob) {
     result.textContent = 'Processando áudio...';
     const audio_file = new File([blob], 'gravacao.wav', { type: 'audio/wav' });
     const formData = new FormData();
@@ -61,9 +68,14 @@ async function sendChunkAudio() {
 }
 
 function showScreen(screen) {
+  consentScreen.style.display = (screen === 'consent') ? 'block' : 'none';
   audioScreen.style.display = (screen === 'audio') ? 'block' : 'none';
   docsScreen.style.display = (screen === 'docs') ? 'block' : 'none';
   feedbackScreen.style.display = (screen === 'feedback') ? 'block' : 'none';
+  if (screen === 'audio' && !consentAccepted) {
+    alert('Você precisa aceitar o termo de consentimento antes de iniciar a gravação')
+    return;
+  }
   if (screen == 'docs') fetchDocs();
 }
 
@@ -101,36 +113,36 @@ async function fetchDocs() {
       list.appendChild(li);
     });
 
-// Upload de novo documento
-document.getElementById('uploadDocBtn').onclick = function () {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.pdf,.doc,.docx,.txt';
-  input.onchange = async function (e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('file', file);
-    const list = document.getElementById('docsList');
-    list.innerHTML = 'Enviando...';
-    try {
-      const response = await fetch('http://localhost:8080/v1/u/docs', {
-        method: 'POST',
-        body: formData
-      });
-      if (response.ok) {
-        showModalBar('Documento enviado com sucesso!');
-        fetchDocs();
-      } else {
-        showModalBar('Erro ao enviar documento.');
-        list.innerHTML = 'Erro ao enviar documento.';
-      }
-    } catch (err) {
-      list.innerHTML = 'Erro ao enviar documento.' + err;
-    }
-  };
-  input.click();
-};
+    // Upload de novo documento
+    document.getElementById('uploadDocBtn').onclick = function () {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.pdf,.doc,.docx,.txt';
+      input.onchange = async function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        const list = document.getElementById('docsList');
+        list.innerHTML = 'Enviando...';
+        try {
+          const response = await fetch('http://localhost:8080/v1/u/docs', {
+            method: 'POST',
+            body: formData
+          });
+          if (response.ok) {
+            showModalBar('Documento enviado com sucesso!');
+            fetchDocs();
+          } else {
+            showModalBar('Erro ao enviar documento.');
+            list.innerHTML = 'Erro ao enviar documento.';
+          }
+        } catch (err) {
+          list.innerHTML = 'Erro ao enviar documento.' + err;
+        }
+      };
+      input.click();
+    };
   } catch (err) {
     list.innerHTML = 'Erro ao buscar documentos.';
   }
@@ -148,7 +160,7 @@ async function deleteDoc(docId) {
     });
     if (response.ok) {
       showModalBar('Documento apagado com sucesso!');
-      fetchDocs(); 
+      fetchDocs();
     } else {
       showModalBar('Erro ao apagar documento.');
       list.innerHTML = 'Erro ao deletar documento.';
@@ -186,3 +198,30 @@ async function sendFeedback(event) {
     result.textContent = 'Erro ao enviar feedback.';
   }
 }
+
+async function acceptConsent() {
+  const check = document.getElementById("consentCheckbox").checked;
+  if (!check) {
+    alert("Você precisa marcar a opção antes de confirmar.");
+    return;
+  }
+
+  consentAccepted = true;
+  document.getElementById("consentResult").innerText = "✔ Consentimento registrado em " + new Date().toLocaleString();
+
+  localStorage.setItem("consent", JSON.stringify({
+    accepted: true,
+    date: new Date().toISOString(),
+    version: "1.0"
+  }));
+}
+
+window.onload = () => {
+  const saved = localStorage.getItem("consent");
+  if (saved) {
+    const data = JSON.parse(saved);
+    consentAccepted = data.accepted;
+    document.getElementById("consentResult").innerText =
+      "Já aceito em " + new Date(data.date).toLocaleString();
+  }
+};
