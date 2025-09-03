@@ -31,11 +31,11 @@ def audioRecognize(audioPath:str):
     
 def audioAnalysisDetectWordsInText(text: str) -> str:
 
-    text_lower = text.lower()
-    correspondence = [phrases for phrases in phrases_crisis if phrases_crisis.lower() in text_lower]
-    if not correspondence:
+    text_lower = text.lower().split()
+    correspondence = [word for word in phrases_crisis if word.lower() in text_lower]
+    if not correspondence or correspondence == [] or correspondence == [""] or correspondence ==["."]:
         return f"não encontrei nenhuma correspondencia"
-    return correspondence
+    return ", ".join(correspondence)
 
 """
 preciso separar as frequências pra identificar quantas pessoas estão falando no ambiente.

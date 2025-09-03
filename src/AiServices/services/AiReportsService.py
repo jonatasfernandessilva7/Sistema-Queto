@@ -17,14 +17,15 @@ from src.backend.controllers.DocumentAnalysisController import pdf_local_analysi
 ARCHIVES_FOR_CONTEXT_PATH = "../../uploads"
 ANALYSIS_MODULE = pdf_local_analysis()
 A_MATURITY_MODEL = "../../docs/A_maturity_model.pdf"
+PRIORITY_LEVELS = ["Desconhecida", "Baixa", "Moderada", "Alta", "Crítico"]
 
-async def AiGeneretadReportsWithLlama(evento: EventModel, resposta: str, plano: list, prioridade: str) -> str:
+async def AiGeneretadReportsWithLlama(evento: EventModel, resposta: str, plano: list, type_event: str) -> str:
 
     prompt = f"""
-Generate a **Technical Risk and Crisis Report** in **Portuguese**, **following ABNT standards**, based on the information and parameters below.
+Generate a **Technical Risk and Cyber Crisis Report** in **Portuguese**, **following ABNT standards**, based on the information and parameters below.
 
 **Objective:**
-Produce a **formal, technical, and visually** organized document, suitable for corporate use, containing a risk assessment, potential crises, and an action plan.
+Produce a **formal, technical, and visually** organized document, suitable for corporate use, containing a risk assessment, potential Cyber crises, and an action plan.
 
 **Input data:**
 
@@ -34,7 +35,7 @@ Produce a **formal, technical, and visually** organized document, suitable for c
   "details": {json.dumps(evento.details, ensure_ascii=False)},
   "reactive_response": "{resposta}",
   "action_plan": {json.dumps(plano, ensure_ascii=False)},
-  "priority": "{prioridade}"
+  "event_type": "{type_event}"
 }}
 
 **Sources and context:**
@@ -67,7 +68,7 @@ Produce a **formal, technical, and visually** organized document, suitable for c
 
     - Action Plan (ISO 22361:2022 and ISO 31000:2018)
 
-    - Priority Classification (ISO 22324:2022 – Low, Moderate, High, Critical, Extreme)
+    - Priority Classification (ISO 22324:2022 – {PRIORITY_LEVELS})
 
     - Calculation of Probability of Occurrence (Monte Carlo, 50,000 simulations per scenario)
 
@@ -101,7 +102,7 @@ Produce a **formal, technical, and visually** organized document, suitable for c
 
     - Based on evidence and technical standards.
 
-**OBSERVAÇÃO**: Consider the full context of everything said. Even if there's some wording related to cybercrisis, if the context doesn't indicate a possible cybercrisis, don't raise the possibility of a crisis.
+**OBSERVATION**: Consider the full context of everything said. Even if there's some wording related to cybercrisis, if the context doesn't indicate a possible cybercrisis, don't raise the possibility of a crisis.
 """
     
     try:

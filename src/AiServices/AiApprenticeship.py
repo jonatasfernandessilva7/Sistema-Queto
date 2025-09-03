@@ -13,7 +13,7 @@ async def AiClassifyEvent(detalhes_evento):
         detalhes_evento_str = str(detalhes_evento)
 
     prompt = f"""
-    You are an AI specialized in corporate risks and crises...
+    You are an AI specialized in corporate risks and cyber crisis...
     **Event Details:** {detalhes_evento_str}
     **Respond with only the event type, as a single word, in Portuguese.**
     """

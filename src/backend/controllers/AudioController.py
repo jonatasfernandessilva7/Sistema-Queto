@@ -152,7 +152,7 @@ async def receivesAndProcessAudio():
         raise HTTPException(status_code=500, detail=f"Error in audio process: {e}")
 
 def sync_audio_processing(audio_path):
-    """Processamento de áudio pesado em CPU (síncrono)."""
+    """Processamento de áudio em CPU (síncrono)."""
     rate, signal = wavfile.read(audio_path)
     if len(signal.shape) > 1:
         signal = signal[:, 0]
@@ -192,9 +192,6 @@ async def receivesAndProcessAudioUploaded(audio_path, q=None):
         
         textPresentsInAudio = audioRecognize(audio_path)
         print("Texto reconhecido:", textPresentsInAudio)
-
-        correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis = audioAnalysisDetectWordsInText(textPresentsInAudio)
-        eventDetails["correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis"] = correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis
         
         emotionToString = "Error: could not analyze emotion"
         if textPresentsInAudio:
@@ -206,6 +203,9 @@ async def receivesAndProcessAudioUploaded(audio_path, q=None):
         eventDetails['emotion'] = emotionToString
         eventDetails['text_presents_in_audio'] = textPresentsInAudio
         eventDetectedType = await AiClassifyEvent(eventDetails)
+
+        correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis = audioAnalysisDetectWordsInText(textPresentsInAudio)
+        eventDetails["correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis"] = correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis
 
         event = EventModel(
             type=eventDetectedType,
@@ -228,11 +228,11 @@ async def receivesAndProcessAudioUploaded(audio_path, q=None):
 
         aiReactiveAnswer = AiReactiveAnswer(event)
         aiDeliberativePlann = AiDeliberativePlanning(event)
-        priority = await AiClassifyEvent(event)
+        type_event = await AiClassifyEvent(event)
         similarMessage, similarEvent = AiCompareEventsHistory(event)
 
-        aiReport = await AiGeneretadReportsWithLlama(event, aiReactiveAnswer, aiDeliberativePlann, priority)
-        reportFile = AiSaveReports(aiReport, datetime.datetime.now().strftime("%Y%m%d_%H%M%S"), priority)
+        aiReport = await AiGeneretadReportsWithLlama(event, aiReactiveAnswer, aiDeliberativePlann, type_event)
+        reportFile = AiSaveReports(aiReport, datetime.datetime.now().strftime("%Y%m%d_%H%M%S"), type_event)
         await sendEmailWithAttachments([reportFile, audio_path], os.getenv("DESTINATION_EMAIL"))
 
         result = JSONResponse(
@@ -242,7 +242,7 @@ async def receivesAndProcessAudioUploaded(audio_path, q=None):
                 "correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crise": correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis,
                 "AI_reactive_answer": aiReactiveAnswer,
                 "AI_deliberative_plan": aiDeliberativePlann,
-                "priority": priority,
+                "type_event": type_event,
                 "AI_report": aiReport,
                 "similarity": similarMessage,
                 "similar_event": similarEvent,
