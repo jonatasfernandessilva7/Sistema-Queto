@@ -2,17 +2,38 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./public/css/style.css">
   <link rel="icon" href="./public/img/FAVICON.png" type="image/png">
   <title>Desktop Frontend</title>
 </head>
 <body>
   <nav class="navbar">
+    <button onclick="showScreen('consent')">Termo de Consentimento</button>
     <button onclick="showScreen('audio')">Análise de Áudio</button>
     <button onclick="showScreen('docs')">Ver Documentos</button>
     <button onclick="showScreen('feedback')">Enviar Feedback</button>
   </nav>
   <div class="container">
+    <!--Termo de consentimento-->
+    <div id="consentScreen" class="screen">
+      <h2>Termo de Consentimento</h2>
+      <p>
+        Autorizo a gravação da minha voz durante a reunião e seu uso para fins
+        de registro, transcrição e análise. As gravações serão armazenadas de
+        forma segura por até xx meses e não serão compartilhadas sem minha
+        autorização, salvo exigência legal. Posso solicitar acesso, exclusão ou
+        revogar este consentimento a qualquer momento pelo e-mail:
+        contato@empresa.com
+      </p>
+      <label>
+        <input type="checkbox" id="consentCheckbox" />
+        Li e concordo
+      </label>
+      <br /><br />
+      <button onclick="acceptConsent()">Confirmar</button>
+      <div id="consentResult"></div>
+    </div>
+
     <!-- Tela de Áudio -->
     <div id="audioScreen" class="screen">
       <h2>Análise de Áudio</h2>
@@ -39,7 +60,7 @@
       <div id="feedbackResult"></div>
     </div>
   </div>
-  <script src="./recorder.js"></script>
-  <script src="./renderer.js"></script>
+  <script src="./public/js/recorder.js"></script>
+  <script src="./public/js/renderer.js"></script>
 </body>
 </html>
