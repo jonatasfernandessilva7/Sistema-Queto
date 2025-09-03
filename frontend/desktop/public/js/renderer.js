@@ -190,24 +190,76 @@ function showModalBar(msg) {
   }, 2000);
 }
 
+// Carregar eventos ao abrir a tela
+async function loadEvents() {
+  try {
+    const response = await fetch("http://localhost:8080/v1/u/events"); // sua rota FastAPI
+    if (!response.ok) throw new Error("Erro ao buscar eventos");
+
+    const data = await response.json();
+    const eventSelect = document.getElementById("eventSelect");
+
+    eventSelect.innerHTML = '<option value="">Selecione um evento...</option>';
+
+    data.events.forEach(ev => {
+      const option = document.createElement("option");
+      option.value = ev.id;
+      option.textContent = `ID: ${ev.id} - ${ev.timestamp || ev.descricao || "Evento"}`;
+      eventSelect.appendChild(option);
+    });
+
+  } catch (err) {
+    console.error("Erro ao carregar eventos:", err);
+    document.getElementById("eventSelect").innerHTML =
+      '<option value="">Erro ao carregar eventos</option>';
+  }
+}
+
+// Mostrar formulário de feedback quando selecionar evento
+function showFeedbackForm() {
+  const selectedEvent = document.getElementById("eventSelect").value;
+  document.getElementById("feedbackForm").style.display = selectedEvent ? "block" : "none";
+}
+
 // Enviar feedback
 async function sendFeedback(event) {
   event.preventDefault();
-  const text = document.getElementById('feedbackText').value;
-  const result = document.getElementById('feedbackResult');
-  result.textContent = 'Enviando...';
+
+  const eventId = document.getElementById("eventSelect").value;
+  const data = {
+    event_id: parseInt(eventId),
+    human_classification: document.getElementById("humanClassification").value,
+    human_priority: document.getElementById("humanPriority").value,
+    comment: document.getElementById("feedbackText").value
+  };
+
   try {
-    const response = await fetch('http://localhost:8080/v1/u/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ feedback: text })
+    const response = await fetch("http://localhost:8080/v1/u/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
     });
-    await response.json();
-    result.textContent = 'Feedback enviado!';
+
+    if (!response.ok) throw new Error("Erro no envio");
+
+    const result = await response.json();
+    document.getElementById("feedbackResult").innerText =
+      "Feedback enviado com sucesso!";
+    console.log("Resposta do servidor:", result);
+
+    document.getElementById("feedbackForm").reset();
+    document.getElementById("feedbackForm").style.display = "none";
+    document.getElementById("eventSelect").value = "";
+
   } catch (err) {
-    result.textContent = 'Erro ao enviar feedback.';
+    console.error("Erro ao enviar feedback:", err);
+    document.getElementById("feedbackResult").innerText =
+      "Erro ao enviar feedback!";
   }
 }
+
+// chamar ao carregar a tela
+document.addEventListener("DOMContentLoaded", loadEvents);
 
 // Consentimento
 async function acceptConsent() {

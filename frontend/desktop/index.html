@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="./public/css/style.css">
   <link rel="icon" href="./public/img/FAVICON.png" type="image/png">
   <title>Desktop Frontend</title>
 </head>
+
 <body>
   <nav class="navbar">
     <button onclick="showScreen('consent')">Termo de Consentimento</button>
@@ -44,23 +46,57 @@
     <!-- Tela de Documentos -->
     <div id="docsScreen" class="screen" style="display:none;">
       <h2>Documentos</h2>
-        <ul id="docsList"></ul>
-        <button id="uploadDocBtn" title="Upload de novo documento" style="margin-top: 16px;">
-          &#128190; Upload
-        </button>
-        <div id="modalBar" style="display:none;"></div>
+      <ul id="docsList"></ul>
+      <button id="uploadDocBtn" title="Upload de novo documento" style="margin-top: 16px;">
+        &#128190; Upload
+      </button>
+      <div id="modalBar" style="display:none;"></div>
     </div>
     <!-- Tela de Feedback -->
     <div id="feedbackScreen" class="screen" style="display:none;">
       <h2>Enviar Feedback</h2>
-      <form id="feedbackForm" onsubmit="sendFeedback(event)">
-        <textarea id="feedbackText" rows="5" placeholder="Digite seu feedback..." required></textarea><br>
+
+      <!-- Lista de eventos -->
+      <label for="eventSelect">Selecione um evento:</label><br>
+      <select id="eventSelect" onchange="showFeedbackForm()" required>
+        <option value="">Carregando eventos...</option>
+      </select><br><br>
+
+      <!-- Formulário de feedback (inicia escondido) -->
+      <form id="feedbackForm" onsubmit="sendFeedback(event)" style="display:none;">
+
+        <!-- Classificação Humana -->
+        <label for="humanClassification">Classificação:</label><br>
+        <select id="humanClassification" required>
+          <option value="">Selecione...</option>
+          <option value="desastre">Desastre</option>
+          <option value="acidente">Acidente</option>
+          <option value="falha">Falha</option>
+          <option value="outro">Outro</option>
+        </select><br><br>
+
+        <!-- Prioridade -->
+        <label for="humanPriority">Prioridade:</label><br>
+        <select id="humanPriority" required>
+          <option value="">Selecione...</option>
+          <option value="Baixa">Baixa</option>
+          <option value="Média">Média</option>
+          <option value="Alta">Alta</option>
+          <option value="Extrema">Extrema</option>
+        </select><br><br>
+
+        <!-- Comentário -->
+        <label for="feedbackText">Comentário:</label><br>
+        <textarea id="feedbackText" rows="5" placeholder="Digite seu comentário..." required></textarea><br>
+
         <button type="submit">Enviar</button>
       </form>
+
       <div id="feedbackResult"></div>
     </div>
-  </div>
-  <script src="./public/js/recorder.js"></script>
-  <script src="./public/js/renderer.js"></script>
+
+    <script src="./public/js/recorder.js"></script>
+    <script src="./public/js/renderer.js"></script>
 </body>
+
 </html>
