@@ -101,6 +101,11 @@ async def view_doc_id(doc_id: int, background_tasks: BackgroundTasks):
 def getClusterEvents(k: int):
     return ClusterController.get_cluster_events(k)
 
+# return all events
+@router.get("/u/events")
+def getAllEvents():
+    return ClusterController.get_all_events()
+
 @router.get("/u/memory-state")
 def getMemoryState():
     return MemoryStateController.memoState()

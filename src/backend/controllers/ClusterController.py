@@ -21,3 +21,10 @@ def get_cluster_events(k: int = 3):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+def get_all_events():
+    history = getEventHistory()
+    try:
+        return JSONResponse(content={"status":200, "events": history})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
