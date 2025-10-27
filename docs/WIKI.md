@@ -139,10 +139,21 @@ CREATE TABLE historico_eventos (
    - Classificação de emoções
    - Pontuação de intensidade
 
-2. **Agente de Análise de Risco**
-   - Detecção de palavras-chave
-   - Classificação de severidade
-   - Análise de contexto
+2. **Agentes de Análise de Risco (ISO 31000)**
+   - **Agente de Monitoramento e Controle**
+     - Monitoramento contínuo de indicadores
+     - Avaliação de eficácia dos controles
+     - Identificação de desvios
+
+   - **Agente de Resposta a Riscos**
+     - Implementação de medidas de mitigação
+     - Coordenação de respostas
+     - Avaliação de impacto das ações
+
+   - **Agente de Planejamento de Risco**
+     - Elaboração de planos de contingência
+     - Definição de estratégias
+     - Priorização de ações baseada em ISO 31000
 
 3. **Agente de Planejamento**
    - Geração de planos de ação
@@ -150,10 +161,12 @@ CREATE TABLE historico_eventos (
    - Recomendações
 
 #### 3.4.2 Modelos e Algoritmos
-- LLaMA para processamento de linguagem natural
+- LLaMA/Groq para processamento de linguagem natural
 - Classificadores de emoções
 - Algoritmos de processamento de áudio
 - Monte Carlo para simulações
+- Framework LangGraph para orquestração de agentes
+- Implementação baseada em ISO 31000
 
 ## 4. Requisitos de Sistema
 
@@ -212,7 +225,39 @@ recorder.js
 - Versionamento de código
 - Backup de configurações
 
-## 7. Integração e Deployment
+## 7. Testes e Qualidade
+
+### 7.1 Estrutura de Testes
+- **Testes Unitários** (pytest)
+  - Módulos de IA e agentes
+  - Serviços de relatório
+  - Repositório genérico
+  - Agentes de análise de risco
+
+### 7.2 Mocking e Fixtures
+- Mock para LLMs e chamadas API
+- Banco de dados em memória (SQLite)
+- Simulação de entrada de áudio
+- FakeChat para testes de agentes
+
+### 7.3 Cobertura de Testes
+- Testes para AiSaveReports
+- Testes para AiGeneratedReportsWithLlama
+- Testes para agentes de risco ISO 31000
+- Validação de fluxos de dados
+
+### 7.4 Execução de Testes
+```bash
+# Executar todos os testes
+pytest
+
+# Executar testes específicos
+pytest tests/test_ai_reports.py
+pytest tests/test_risk_agents.py
+pytest tests/test_generics_repository.py
+```
+
+## 8. Integração e Deployment
 
 ### 7.1 Ambiente de Desenvolvimento
 ```bash
@@ -232,21 +277,21 @@ npm start
 3. Configuração de banco de dados
 4. Inicialização de serviços
 
-## 8. Considerações Futuras
+## 9. Considerações Futuras
 
-### 8.1 Escalabilidade
+### 9.1 Escalabilidade
 - Suporte a múltiplos usuários
 - Distribuição de carga
 - Cache distribuído
 - Processamento paralelo
 
-### 8.2 Melhorias Planejadas
+### 9.2 Melhorias Planejadas
 - Interface web
 - Suporte a mais formatos de áudio
 - APIs públicas
 - Integração com outros sistemas
 
-## 9. Apêndices
+## 10. Apêndices
 
 ### 9.1 Glossário
 - **LLM**: Large Language Model
