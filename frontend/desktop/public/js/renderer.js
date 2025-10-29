@@ -193,7 +193,7 @@ function showModalBar(msg) {
 // Carregar eventos ao abrir a tela
 async function loadEvents() {
   try {
-    const response = await fetch("http://localhost:8080/v1/u/events"); // sua rota FastAPI
+    const response = await fetch("http://localhost:8080/v1/u/events");
     if (!response.ok) throw new Error("Erro ao buscar eventos");
 
     const data = await response.json();
