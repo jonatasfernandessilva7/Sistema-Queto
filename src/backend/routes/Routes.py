@@ -4,6 +4,7 @@ import uuid
 import asyncio
 import datetime
 import aiofiles
+import logging
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..")))
 
@@ -11,6 +12,8 @@ from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
 from typing import List
 from scipy.io import wavfile
 from concurrent.futures import ThreadPoolExecutor
+
+log = logging.getLogger(__name__)
 
 from src.backend.controllers import (
     DocumentController,
@@ -76,8 +79,23 @@ async def processAudio(audio_file: UploadFile = File(...)):
     
     q = asyncio.Queue()
     result = await AudioController.receivesAndProcessAudioUploaded(temporaryPath, q=q)
-    os.remove(temporaryPath)
-    result_final = await q.get()
+    
+    try:
+        # Wait for result with 5-minute timeout
+        result_final = await asyncio.wait_for(q.get(), timeout=300.0)
+    except asyncio.TimeoutError:
+        log.error("Timeout waiting for audio processing result")
+        raise HTTPException(
+            status_code=504,
+            detail="Audio processing timed out. Please try again with a shorter audio file."
+        )
+    finally:
+        # Always clean up the temporary file
+        if os.path.exists(temporaryPath):
+            try:
+                os.remove(temporaryPath)
+            except OSError as e:
+                log.warning(f"Failed to delete temporary file {temporaryPath}: {e}")
     
     return result_final
 

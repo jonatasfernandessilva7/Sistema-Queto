@@ -2,8 +2,27 @@ import sqlite3
 import json
 import datetime
 import os
+import logging
 
 from src.backend.database.ConnectionWithDatabase import connect_db
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+class DatabaseError(Exception):
+    """Exception raised for database operation errors"""
+    pass
+
+
+class DocumentNotFoundError(DatabaseError):
+    """Exception raised when document is not found"""
+    pass
+
+
+class ReportNotFoundError(DatabaseError):
+    """Exception raised when report is not found"""
+    pass
 
 def create_tables():
 
@@ -76,19 +95,44 @@ def create_tables():
         conn.commit()
 
 def get_system_status(system_name: str) -> str:
-
-    with connect_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT status FROM sistemas WHERE nome = ?", (system_name))
-        result = cursor.fetchone()
-        return['status'] if result else "desconhecido"
+    if not system_name or not isinstance(system_name, str):
+        logger.warning(f"Invalid system_name parameter: {system_name}")
+        return "desconhecido"
+    
+    try:
+        with connect_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT status FROM sistemas WHERE nome = ?", (system_name,))
+            result = cursor.fetchone()
+            return result['status'] if result else "desconhecido"
+    except sqlite3.Error as e:
+        logger.error(f"Database error in get_system_status: {e}")
+        raise DatabaseError(f"Failed to get status for system {system_name}") from e
+    except Exception as e:
+        logger.error(f"Unexpected error in get_system_status: {e}")
+        raise DatabaseError(f"Unexpected error getting system status") from e
     
 def update_system_status(system_name: str, status: str):
-
-    with connect_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("INSERT TO REPLACE INTO sistemas (nome, status) VALUES (?,?)", (system_name, status))
-        conn.commit()
+    if not system_name or not isinstance(system_name, str):
+        logger.warning(f"Invalid system_name parameter: {system_name}")
+        raise ValueError("system_name must be a non-empty string")
+    
+    if not status or not isinstance(status, str):
+        logger.warning(f"Invalid status parameter: {status}")
+        raise ValueError("status must be a non-empty string")
+    
+    try:
+        with connect_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO sistemas (nome, status) VALUES (?,?)", (system_name, status))
+            conn.commit()
+            logger.info(f"System status updated: {system_name} -> {status}")
+    except sqlite3.Error as e:
+        logger.error(f"Database error in update_system_status: {e}")
+        raise DatabaseError(f"Failed to update status for system {system_name}") from e
+    except Exception as e:
+        logger.error(f"Unexpected error in update_system_status: {e}")
+        raise DatabaseError(f"Unexpected error updating system status") from e
 
 def add_event_history(event_data: dict, timestamp: str):
 
@@ -161,8 +205,19 @@ def get_feedback_for_event_type(llm_classification: str, limit: int = 10):
          return [dict(row) for row in cursor.fetchall()]
      
 def add_documentos(filename, caminho_do_arquivo):
+    if not filename or not isinstance(filename, str):
+        logger.warning(f"Invalid filename: {filename}")
+        raise ValueError("filename must be a non-empty string")
+    
+    if not caminho_do_arquivo or not isinstance(caminho_do_arquivo, str):
+        logger.warning(f"Invalid file path: {caminho_do_arquivo}")
+        raise ValueError("caminho_do_arquivo must be a non-empty string")
     
     try:
+        if not os.path.exists(caminho_do_arquivo):
+            logger.error(f"File not found: {caminho_do_arquivo}")
+            raise FileNotFoundError(f"O arquivo {filename} não foi encontrado em {caminho_do_arquivo}")
+        
         timestamp = datetime.datetime.now().isoformat()
 
         with open(caminho_do_arquivo, 'rb') as f:
@@ -170,17 +225,31 @@ def add_documentos(filename, caminho_do_arquivo):
 
         with connect_db() as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO documentos (filename, origem, conteudo, timestamp) VALUES (?,?,?,?)", (filename, caminho_do_arquivo, sqlite3.Binary(pdf_binario), timestamp))
-            return "inserido com sucesso"
+            cursor.execute("INSERT INTO documentos (filename, origem, conteudo, timestamp) VALUES (?,?,?,?)", 
+                         (filename, caminho_do_arquivo, sqlite3.Binary(pdf_binario), timestamp))
+            conn.commit()
+            doc_id = cursor.lastrowid
+            logger.info(f"Document inserted successfully: {filename} (ID: {doc_id})")
+            return doc_id
         
-    except FileNotFoundError:
-        return f"Erro: o arquivo {filename} não foi encontrado"
-
+    except FileNotFoundError as e:
+        logger.error(f"File not found error: {e}")
+        raise
+    except IOError as e:
+        logger.error(f"IO error while reading file {filename}: {e}")
+        raise DatabaseError(f"Erro ao ler arquivo {filename}") from e
+    except sqlite3.Error as e:
+        logger.error(f"Database error while inserting document: {e}")
+        raise DatabaseError(f"Erro ao inserir documento {filename} no banco") from e
     except Exception as e:
-        return e
+        logger.error(f"Unexpected error in add_documentos: {e}")
+        raise DatabaseError(f"Erro inesperado ao adicionar documento") from e
 
 async def get_documentos_by_id(doc_id: int):
-
+    if not isinstance(doc_id, int) or doc_id <= 0:
+        logger.warning(f"Invalid doc_id: {doc_id}")
+        raise ValueError("doc_id must be a positive integer")
+    
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
@@ -190,73 +259,117 @@ async def get_documentos_by_id(doc_id: int):
         if resultQuery:
             filename = resultQuery[0]
             binary_content = resultQuery[1]
+            logger.info(f"Document retrieved: {filename} (ID: {doc_id})")
             return filename, binary_content
         else:
-            return None, None
+            logger.warning(f"Document not found with ID: {doc_id}")
+            raise DocumentNotFoundError(f"Documento com ID {doc_id} não encontrado")
 
+    except DocumentNotFoundError:
+        raise
+    except sqlite3.Error as e:
+        logger.error(f"Database error in get_documentos_by_id (ID: {doc_id}): {e}")
+        raise DatabaseError(f"Erro ao recuperar documento") from e
     except Exception as e:
-        print(f"error in query execution (ID: {doc_id}): {e}")
-        return None, None
+        logger.error(f"Unexpected error in get_documentos_by_id (ID: {doc_id}): {e}")
+        raise DatabaseError(f"Erro inesperado ao recuperar documento") from e
 
 async def get_all_documentos():
-
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, filename FROM documentos") 
+            cursor.execute("SELECT id, filename FROM documentos")
 
             resultQuery = cursor.fetchall()
             if not resultQuery:
-                return False
+                logger.info("No documents found in database")
+                return []
             
-            for id, nome in resultQuery:
-                print(f"ID: {id}, Nome: {nome}")
-                print("------------------------------")
+            logger.info(f"Retrieved {len(resultQuery)} documents from database")
             return resultQuery
     
+    except sqlite3.Error as e:
+        logger.error(f"Database error in get_all_documentos: {e}")
+        raise DatabaseError(f"Erro ao recuperar documentos do banco") from e
     except Exception as e:
-        return e
+        logger.error(f"Unexpected error in get_all_documentos: {e}")
+        raise DatabaseError(f"Erro inesperado ao recuperar documentos") from e
 
 def getAllReports():
-
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, documento_id, relatorio , timestamp FROM analise_de_documentos ORDER BY timestamp DESC")
+            cursor.execute("SELECT id, documento_id, relatorio, timestamp FROM analise_de_documentos ORDER BY timestamp DESC")
             rows = cursor.fetchall()
 
             if not rows:
+                logger.info("No reports found in database")
                 return []
 
             reports = []
-
             for row in rows:
                 reports.append(dict(row))
+            
+            logger.info(f"Retrieved {len(reports)} reports from database")
             return reports
 
+    except sqlite3.Error as e:
+        logger.error(f"Database error in getAllReports: {e}")
+        raise ReportNotFoundError(f"Erro ao recuperar relatórios do banco") from e
     except Exception as e:
-        print(f"Error find reports: {e}")
-        raise
+        logger.error(f"Unexpected error in getAllReports: {e}")
+        raise ReportNotFoundError(f"Erro inesperado ao recuperar relatórios") from e
 
 def delete_document_by_id(doc_id: int) -> bool:
+    if not isinstance(doc_id, int) or doc_id <= 0:
+        logger.warning(f"Invalid doc_id: {doc_id}")
+        raise ValueError("doc_id must be a positive integer")
+    
     try:
         with connect_db() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT origem FROM documentos WHERE id = ?", (doc_id,))
             result = cursor.fetchone()
+            
+            if not result:
+                logger.warning(f"Document not found for deletion: ID={doc_id}")
+                raise DocumentNotFoundError(f"Documento com ID {doc_id} não encontrado para exclusão")
+            
             cursor.execute("DELETE FROM documentos WHERE id = ?", (doc_id,))
             conn.commit()
+            
             if result and result[0]:
                 file_path = result[0]
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            return cursor.rowcount > 0
+                try:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        logger.info(f"File deleted from disk: {file_path}")
+                except OSError as e:
+                    logger.warning(f"Failed to delete file from disk {file_path}: {e}")
+            
+            deletion_successful = cursor.rowcount > 0
+            if deletion_successful:
+                logger.info(f"Document deleted from database: ID={doc_id}")
+            return deletion_successful
+            
+    except (DocumentNotFoundError, ValueError):
+        raise
+    except sqlite3.Error as e:
+        logger.error(f"Database error in delete_document_by_id (ID: {doc_id}): {e}")
+        raise DatabaseError(f"Erro ao deletar documento do banco") from e
     except Exception as e:
-        print(f"Error in deleted data (ID: {doc_id}): {e}")
-        return False
+        logger.error(f"Unexpected error in delete_document_by_id (ID: {doc_id}): {e}")
+        raise DatabaseError(f"Erro inesperado ao deletar documento") from e
 
 
 def saveReport(documento_id: int, report_content: bytes) -> int:
+    if not isinstance(documento_id, int) or documento_id <= 0:
+        logger.warning(f"Invalid documento_id: {documento_id}")
+        raise ValueError("documento_id must be a positive integer")
+    
+    if not isinstance(report_content, bytes) or len(report_content) == 0:
+        logger.warning(f"Invalid report_content: empty or not bytes")
+        raise ValueError("report_content must be non-empty bytes")
 
     try:
         with connect_db() as conn:
@@ -268,8 +381,18 @@ def saveReport(documento_id: int, report_content: bytes) -> int:
                 (documento_id, sqlite3.Binary(report_content), timestamp)
             )
             conn.commit()
-            return cursor.lastrowid
+            report_id = cursor.lastrowid
+            logger.info(f"Report saved successfully: documento_id={documento_id}, report_id={report_id}")
+            return report_id
 
+    except sqlite3.IntegrityError as e:
+        logger.error(f"Integrity error: documento_id={documento_id} might not exist: {e}")
+        raise DatabaseError(f"Erro: documento com ID {documento_id} não existe") from e
+    except sqlite3.Error as e:
+        logger.error(f"Database error in saveReport: {e}")
+        raise DatabaseError(f"Erro ao salvar relatório no banco") from e
+    except ValueError:
+        raise
     except Exception as e:
-        print(f"Error in save report: {e}")
-        return -1
+        logger.error(f"Unexpected error in saveReport: {e}")
+        raise DatabaseError(f"Erro inesperado ao salvar relatório") from e
