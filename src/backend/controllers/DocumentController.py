@@ -9,8 +9,9 @@ from src.backend.services.DocumentService import (
     viewAllCompanyDocumentsById,
     delete_document_service
 )
+from src.core.config.settings import Settings
 
-PDF_FOLDER = Path("../uploads")
+PDF_FOLDER = Settings.UPLOADS_DIR
 
 async def upload_file(file: List[UploadFile] = File(...) ):
 

@@ -19,12 +19,14 @@ from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, END
 
 # Document analysis utilities
-from src.backend.services.DocumentAnalysisService import (
+from src.api.services.analysis import (
     extract_text,
     extract_tables,
     extract_images,
+    resume_text
+)
+from src.backend.services.DocumentAnalysisService import (
     ocrMethod,
-    resume_text,
     semanticSearch
 )
 
@@ -90,6 +92,7 @@ async def semantic_search_documents(query: str) -> str:
 
 @tool
 async def extract_tables_from_docs() -> str:
+    """Extract tables from all documents in the uploads folder."""
     files = _list_upload_files()
     results = []
     for path in files:

@@ -10,16 +10,14 @@ from fastapi.responses import JSONResponse
 from scipy.io import wavfile
 from dotenv import load_dotenv
 
-from src.backend.utils.idenpotenceFuncionUtils import idempotency
-from src.backend.utils.EmailUtils import sendEmailWithAttachments
+from src.core.utils import idempotency
+from src.core.utils import sendEmailWithAttachments
 
-from src.AiServices.services.AiAudioAnalysisService import (
+from src.api.services.audio import (
     audioAnalysisDetectWordsInText,
     audioRecognize,
-    extracting_characteristics
-)
-from src.backend.services.MicrophoneService import (
-    recordMicrophoneAudio, 
+    extracting_characteristics,
+    recordMicrophoneAudio,
     stopContinuousRecording
 )
 
@@ -27,20 +25,20 @@ from langchain_core.messages import HumanMessage, AIMessage
 #from src.agents.environment_organizational_agents_tools.EmotionAgent import app as emotion_agent_app
 from src.agents.environment_organizational_agent import outers_agent
 
-from src.AiServices.services.AiAnswerService import (
+from src.api.services.analysis import (
     AiReactiveAnswer, 
-    AiDeliberativePlanning
+    AiDeliberativePlanning,
+    AiClassifyEvent
 )
-from src.AiServices.services.AiReportsService import (
-    AiGeneretadReportsWithLlama, 
+from src.api.services.reports import (
     AiSaveReports
 )
-from src.AiServices.AiMemory import (
-    AiAddingEventHistory,
-    AiCompareEventsHistory
+from src.AiServices.services.AiReportsService import AiGenerateReportC2M
+from src.core.models import (
+    EventModel,
+    add_event_to_history,
+    compare_events_with_history
 )
-from src.AiServices.AiApprenticeship import AiClassifyEvent
-from src.AiServices.AiModels import EventModel
 
 load_dotenv()
 
@@ -110,7 +108,7 @@ async def receivesAndProcessAudio():
             details=eventDetails
         )
 
-        AiAddingEventHistory({"event": event.model_dump(), "timestamp": timestamp})
+        add_event_to_history({"event": event.model_dump(), "timestamp": timestamp})
 
         if "não encontrei nenhuma correspondencia" in correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis:
             return JSONResponse({
@@ -123,9 +121,10 @@ async def receivesAndProcessAudio():
         aiReactiveAnswer = AiReactiveAnswer(event)
         aiDeliberativePlann = AiDeliberativePlanning(event)
         priority = await AiClassifyEvent(event)
-        similarMessage, similarEvent = AiCompareEventsHistory(event)
+        similarMessage, similarEvent = compare_events_with_history(event)
 
-        aiReport = await AiGeneretadReportsWithLlama(event, aiReactiveAnswer, aiDeliberativePlann, priority)
+        c2m_analysis = await AiGenerateReportC2M(event)
+        aiReport = c2m_analysis.get('analysis_summary', 'Relatório C2M gerado')
         reportFile = AiSaveReports(aiReport, timestamp, priority)
         await sendEmailWithAttachments([reportFile, temporaryPath], os.getenv("DESTINATION_EMAIL"))
 
@@ -139,6 +138,8 @@ async def receivesAndProcessAudio():
             "AI_deliberative_plan": aiDeliberativePlann,
             "priority": priority,
             "AI_report": aiReport,
+            "c2m_probability": c2m_analysis.get('probability_pct', 0),
+            "c2m_priority": c2m_analysis.get('priority', 'Desconhecido'),
             "similarity": similarMessage,
             "similar_event": similarEvent,
             "emotion": emotionToString,
@@ -213,7 +214,7 @@ async def receivesAndProcessAudioUploaded(audio_path, q=None):
             details=eventDetails
         )
 
-        AiAddingEventHistory({"event": event.model_dump(), "timestamp": datetime.datetime.now().strftime("%Y%m%d_%H%M%S")})
+        add_event_to_history({"event": event.model_dump(), "timestamp": datetime.datetime.now().strftime("%Y%m%d_%H%M%S")})
 
         if "não encontrei nenhuma correspondencia" in correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis:
             result = JSONResponse({
@@ -229,9 +230,10 @@ async def receivesAndProcessAudioUploaded(audio_path, q=None):
         aiReactiveAnswer = AiReactiveAnswer(event)
         aiDeliberativePlann = AiDeliberativePlanning(event)
         type_event = await AiClassifyEvent(event)
-        similarMessage, similarEvent = AiCompareEventsHistory(event)
+        similarMessage, similarEvent = compare_events_with_history(event)
 
-        aiReport = await AiGeneretadReportsWithLlama(event, aiReactiveAnswer, aiDeliberativePlann, type_event)
+        c2m_analysis = await AiGenerateReportC2M(event)
+        aiReport = c2m_analysis.get('analysis_summary', 'Relatório C2M gerado')
         reportFile = AiSaveReports(aiReport, datetime.datetime.now().strftime("%Y%m%d_%H%M%S"), type_event)
         await sendEmailWithAttachments([reportFile, audio_path], os.getenv("DESTINATION_EMAIL"))
 
@@ -244,6 +246,8 @@ async def receivesAndProcessAudioUploaded(audio_path, q=None):
                 "AI_deliberative_plan": aiDeliberativePlann,
                 "type_event": type_event,
                 "AI_report": aiReport,
+                "c2m_probability": c2m_analysis.get('probability_pct', 0),
+                "c2m_priority": c2m_analysis.get('priority', 'Desconhecido'),
                 "similarity": similarMessage,
                 "similar_event": similarEvent,
                 "emotion": emotionToString,

@@ -7,12 +7,13 @@ from fastapi import UploadFile, File, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 from typing import List, Dict
 from src.backend.repository.GenericsRepository import add_documentos, get_all_documentos, get_documentos_by_id, delete_document_by_id
+from src.core.config.settings import Settings
 
 log = logging.getLogger(__name__)
 
-# Use absolute path for upload directory
-UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# Use centralized settings for upload directory
+UPLOAD_DIR = Settings.UPLOADS_DIR
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 async def saveDocumentsCompany(files: List[UploadFile] = File(...)) -> List[Dict]:
     """
@@ -34,7 +35,7 @@ async def saveDocumentsCompany(files: List[UploadFile] = File(...)) -> List[Dict
                 continue
                 
             try:
-                file_location = os.path.join(UPLOAD_DIR, file.filename)
+                file_location = str(UPLOAD_DIR / file.filename)
                 files_size = 0
                 
                 async with aiofiles.open(file_location, "wb") as buffer:
@@ -108,7 +109,7 @@ async def viewAllCompanyDocumentsById(doc_id: int, background_tasks: BackgroundT
             raise HTTPException(status_code=404, detail=f"Document {doc_id} not found")
 
         temp_filename = f"{uuid.uuid4()}_{filename_from_db}"
-        temp_filepath = os.path.join(UPLOAD_DIR, temp_filename)
+        temp_filepath = str(UPLOAD_DIR / temp_filename)
 
         with open(temp_filepath, 'wb') as f:
             f.write(pdfContent)

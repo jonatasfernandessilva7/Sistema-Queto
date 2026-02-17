@@ -1,4 +1,4 @@
-from src.AiServices.AiModels import EventModel
+from src.core.models import EventModel
 from src.AiServices.AiMemory import atualizar_status_sistema
 from src.backend.utils.ConnectionWithLlamaApiGroqUtils import llama_api_call
 

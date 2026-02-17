@@ -1,0 +1,3 @@
+"""
+Emotional analysis agent.
+"""

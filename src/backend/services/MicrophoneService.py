@@ -9,6 +9,7 @@ import logging
 from groq import Groq
 from scipy.io.wavfile import write
 from dotenv import load_dotenv
+from src.core.config.settings import Settings
 
 load_dotenv()
 
@@ -39,12 +40,9 @@ class AudioRecorder:
             self.audio_buffer = []
             self.samplerate = samplerate
             
-            pasta = os.path.join(os.path.dirname(__file__), "..", "audios/")
-            os.makedirs(pasta, exist_ok=True)
-            self.audio_file_path = os.path.join(
-                pasta, 
-                f"audio_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
-            )
+            pasta = Settings.AUDIOS_DIR
+            pasta.mkdir(parents=True, exist_ok=True)
+            self.audio_file_path = str(pasta / f"audio_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.wav")
             
             self.recording_thread = threading.Thread(target=self._record_audio, daemon=False)
             self.recording_thread.start()

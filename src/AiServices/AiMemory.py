@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import KMeans
-from src.AiServices.AiModels import EventModel
+from src.core.models import EventModel
 from src.backend.repository.GenericsRepository import (
     add_event_history, get_event_history, get_memory_state,
     update_system_status, get_system_status

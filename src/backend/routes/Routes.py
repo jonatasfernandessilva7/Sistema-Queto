@@ -23,11 +23,13 @@ from src.backend.controllers import (
     FeedbackController,
     DocumentAnalysisController,
     ReportsController,
-    AudioController
+    AudioController,
+    RLHFController
 )
 
-from src.AiServices.AiModels import EventModel
-from src.AiServices.services.AIFeedbackService import Feedback
+from src.core.models import EventModel
+from src.api.services.feedback import Feedback
+from src.backend.models.ReportFeedback import ReportFeedbackCreate
 
 executor = ThreadPoolExecutor(max_workers=4)
 
@@ -127,3 +129,72 @@ def getAllEvents():
 @router.get("/u/memory-state")
 def getMemoryState():
     return MemoryStateController.memoState()
+
+@router.post("/u/rlhf/feedback")
+async def submit_report_feedback(feedback: ReportFeedbackCreate):
+    """
+    Enviar feedback sobre um relatório C2M
+    
+    POST /v1/u/rlhf/feedback
+    """
+    return await RLHFController.submit_report_feedback(feedback)
+
+
+@router.get("/u/rlhf/feedback/{feedback_id}")
+async def get_feedback_endpoint(feedback_id: str):
+    """
+    Obter um feedback específico
+    
+    GET /v1/u/rlhf/feedback/{feedback_id}
+    """
+    return await RLHFController.get_feedback(feedback_id)
+
+
+@router.get("/u/rlhf/reports/{report_id}/feedback-stats")
+async def get_report_feedback_stats(report_id: str):
+    """
+    Obter estatísticas de feedback para um relatório
+    
+    GET /v1/u/rlhf/reports/{report_id}/feedback-stats
+    """
+    return await RLHFController.get_report_feedback_stats(report_id)
+
+
+@router.get("/u/rlhf/adjustments")
+async def get_adjustment_history(limit: int = 50):
+    """
+    Obter histórico de ajustes de peso
+    
+    GET /v1/u/rlhf/adjustments?limit=50
+    """
+    return await RLHFController.get_adjustment_history(limit)
+
+
+@router.get("/u/rlhf/weights")
+async def get_current_weights():
+    """
+    Obter pesos atuais do sistema C2M
+    
+    GET /v1/u/rlhf/weights
+    """
+    return await RLHFController.get_current_weights()
+
+
+@router.post("/u/rlhf/process")
+async def trigger_feedback_processing(min_feedbacks: int = 10):
+    """
+    Disparar processamento de feedback e ajuste de pesos (RLHF loop)
+    
+    POST /v1/u/rlhf/process?min_feedbacks=10
+    """
+    return await RLHFController.trigger_feedback_processing(min_feedbacks)
+
+
+@router.post("/u/rlhf/reset-weights")
+async def reset_weights():
+    """
+    Resetar pesos para valores padrão
+    
+    POST /v1/u/rlhf/reset-weights
+    """
+    return await RLHFController.reset_weights_to_defaults()

@@ -2,109 +2,96 @@ import io
 import os
 import json
 import re
+import logging
+import asyncio
 
 from fastapi import HTTPException
 from datetime import datetime
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from typing import Dict
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.platypus import Image as RLImage
 from reportlab.platypus import PageBreak
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib import colors
-from src.AiServices.AiModels import EventModel
+from src.core.models import EventModel
 from src.backend.utils.ConnectionWithLlamaApiGroqUtils import llama_api_call
 from src.backend.controllers.DocumentAnalysisController import pdf_local_analysis
+from src.core.config.settings import Settings
+from src.agents.orchestrator.C2M_Orchestrator import C2MOrchestrator
+from src.agents.orchestrator.C2M_Models import ISO_22324_COLORS, ISO_22324_LEVELS
 
-ARCHIVES_FOR_CONTEXT_PATH = "../../uploads"
+log = logging.getLogger(__name__)
+
+ARCHIVES_FOR_CONTEXT_PATH = Settings.UPLOADS_DIR
 ANALYSIS_MODULE = pdf_local_analysis()
 A_MATURITY_MODEL = "../../docs/A_maturity_model.pdf"
 PRIORITY_LEVELS = ["Desconhecida", "Baixa", "Moderada", "Alta", "Crítico"]
+REPORTS_PATH = Settings.REPORTS_DIR / "novos_relatorios"
+REPORTS_PATH.mkdir(parents=True, exist_ok=True)
 
-async def AiGeneretadReportsWithLlama(evento: EventModel, resposta: str, plano: list, type_event: str) -> str:
+# ════════════════════════════════════════════════════════════════════════════════
+# NOVO: AiGenerateReportC2M - Usando modelo C2M completo
+# ════════════════════════════════════════════════════════════════════════════════
 
-    prompt = f"""
-Generate a **Technical Risk and Cyber Crisis Report** in **Portuguese**, **following ABNT standards**, based on the information and parameters below.
+async def AiGenerateReportC2M(evento: EventModel) -> Dict:
+    """
+    NOVO: Processa evento conforme modelo C2M com 4 estágios:
+    1. Extração (3 supervisores)
+    2. Decision Tree
+    3. Monte Carlo (50.000 simulações)
+    4. Relatório estruturado
+    
+    Args:
+        evento: EventModel com type, origin, details
+    
+    Returns:
+        Dict com resultado completo da análise C2M
+    """
+    
+    orchestrator = C2MOrchestrator()
+    result = await orchestrator.process_event(evento, use_llm_enhancement=True)
+    
+    return result
 
-**Objective:**
-Produce a **formal, technical, and visually organized document**, suitable for corporate use, containing a detailed risk assessment, identification of risk agents, potential Cyber crises, escalation scenarios, and a structured action plan.
 
-**Input data:**
+# ════════════════════════════════════════════════════════════════════════════════
+# LEGACY: AiGeneretadReportsWithLlama - Mantido para compatibilidade
+# (Agora usa C2M internamente)
+# ════════════════════════════════════════════════════════════════════════════════
 
-{{
-  "event": "{evento.type}",
-  "source": "{evento.origin}",
-  "details": {json.dumps(evento.details, ensure_ascii=False)},
-  "reactive_response": "{resposta}",
-  "action_plan": {json.dumps(plano, ensure_ascii=False)},
-  "event_type": "{type_event}"
-}}
-
-**Sources and context:**
-
-- Use the files in the {ARCHIVES_FOR_CONTEXT_PATH} directory as a basis for characterizing the organizational context.
-- Use the {ANALYSIS_MODULE} module to analyze these files.
-- Consider the analysis summary as the organization's baseline context.
-- Assess the level of organizational maturity and the ability to respond to risks and crises based on:
-    - ISO 22325:2016
-    - Article: A maturity model for enterprise risk management {A_MATURITY_MODEL}.
-
-**Report Requirements:**
-
-1. **Structure** in accordance with ABNT standards, with:
-
-    - Cover (title, details, person responsible)
-    - Summary
-    - Introduction
-    - Context of the Event
-    - Identification of Risk Agents (internal and external)
-    - Analysis of Possible Risks and Crises
-    - Escalation Scenarios (detailing **how each scenario directly impacts the identified risk agents**)
-    - Action Plan (ISO 22361:2022 and ISO 31000:2018)
-    - Priority Classification (ISO 22324:2022 – {PRIORITY_LEVELS})
-    - Calculation of Probability of Occurrence (Monte Carlo, 50,000 simulations per scenario)
-    - Conclusion with confidence/accuracy level (%)
-
-2. **Technical Content:**
-
-    - Formal language and specialized terminology in risk and crisis management.
-    - Visual clarity and organization to facilitate executive comprehension.
-    - No irrelevant information or noise.
-
-3. **Mandatory analysis:**
-
-    - Relate the event to the organizational context found in the files.
-    - Identify and describe the **agents of risk** (internal, external, human, technological, regulatory, reputational, etc.).
-    - Indicate potential risks, derived crises, and escalation methods.
-    - For each escalation scenario, specify **how the scenario impacts the identified risk agents** and how this interaction can intensify the crisis.
-    - Assess the impact of organizational maturity on crisis response.
-    - Calculate the probability of each scenario occurring using the Monte Carlo method.
-    - Determine the priority level according to ISO 22324:2022.
-    - Present the confidence of the analysis as a percentage.
-
-4. **Tone of the report:**
-
-    - Professional, objective, and confident.
-    - Based on evidence and technical standards.
-
-**OBSERVATION**: Consider the full context of everything said. Even if there's some wording related to cybercrisis, if the context doesn't indicate a possible cybercrisis, don't raise the possibility of a crisis.
-"""
+async def AiGeneretadReportsWithLlama(evento: EventModel, resposta: str = None, plano: list = None, type_event: str = None) -> str:
+    """
+    COMPATÍVEL COM LEGADO
+    Mantém assinatura original mas executa C2M internamente
+    
+    Parâmetros resposta, plano, type_event são ignorados
+    Evento é o único parâmetro usado
+    """
+    
+    log.info(f"AiGeneretadReportsWithLlama chamado. Usando C2M...")
     
     try:
-            
-        relatorio_final = await llama_api_call(prompt)
-
-        return relatorio_final or "Relatório vazio gerado pela IA."
+        result = await AiGenerateReportC2M(evento)
+        
+        if result.get("status") == "error":
+            raise HTTPException(status_code=500, detail=result.get("error_message"))
+        
+        # Retornar sumário como string para manter compatibilidade
+        return result.get("analysis_summary", "Relatório gerado")
     
     except Exception as e:
-            
-        print(f"Erro ao gerar relatório com LLaMA via API (Groq): {e}")
-
-        return HTTPException(status_code=500, detail=f"Erro ao gerar relatório com LLaMA via API (Groq): {e}")
+        log.error(f"Erro ao gerar relatório C2M: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar relatório: {str(e)}")
 
 
-def get_color_by_prioridade(prioridade: str):
-
+def get_color_by_prioridade(prioridade: str) -> colors.Color:
+    """
+    Retorna cor reportlab baseada em prioridade ISO 22324
+    """
+    
+    # Mapeamento para colors reportlab
     cores = {
         "Crítico": colors.red,
         "crítico": colors.red,
@@ -117,14 +104,14 @@ def get_color_by_prioridade(prioridade: str):
         "Desconhecida": colors.gray,
         "desconhecida": colors.gray
     }
-
+    
     return cores.get(prioridade, colors.gray)
 
 def AiSaveReports(relatorio_conteudo: str, timestamp: str, prioridade: str) -> str:
 
-    pasta = os.path.join(os.path.dirname(__file__), "..", "relatorios/novos_relatorios")
-    os.makedirs(pasta, exist_ok=True)
-    nome_arquivo = os.path.join(pasta, f"relatorio_crise_{timestamp}.pdf")
+    pasta = Settings.REPORTS_DIR / "novos_relatorios"
+    pasta.mkdir(parents=True, exist_ok=True)
+    nome_arquivo = str(pasta / f"relatorio_crise_{timestamp}.pdf")
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(nome_arquivo, pagesize=A4,

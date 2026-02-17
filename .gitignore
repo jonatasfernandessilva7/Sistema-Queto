@@ -7,5 +7,7 @@ memoria.db
 uploads
 relatorios
 *.log
-.venv
+venv
 .pytest_cache
+data
+docs/docs_for_guide
