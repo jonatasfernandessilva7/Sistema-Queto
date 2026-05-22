@@ -1,8 +1,79 @@
-Aqui está a **conclusão do arquivo de contexto**, retomando a partir da seção 4.2 e finalizando com as seções restantes (5 a 13), conforme solicitado.
+# C2M - Cyber Crisis Management
+## Contexto Completo para IA e Documentação do Projeto
 
 ---
 
-## 4.2 Componentes da Arquitetura (continuação)
+## 1. Visão Geral do Projeto
+
+**C2M** é um sistema de gestão preditiva de crises cibernéticas baseado em agentes de inteligência artificial. O objetivo é transformar dados organizacionais não estruturados (áudios de reuniões, políticas internas, histórico de incidentes) em indicadores probabilísticos de crise, alinhados às normas **ISO 31000** (riscos), **ISO 22361** (crises), **ISO 22324** (codificação por cores) e **LGPD** (privacidade).
+
+**Pergunta de pesquisa (RQ1):**  
+*Como transformar dados organizacionais não estruturados em indicadores probabilísticos para detecção precoce de crises cibernéticas?*
+
+---
+
+## 2. Metodologia de Desenvolvimento
+
+### 2.1 Design Science Research (DSR)
+
+O projeto segue as etapas do DSR (Hevner et al., 2004):
+
+1. **Identificação do problema** – Organizações carecem de mecanismos para antecipar crises.
+2. **Revisão da literatura** – Normas ISO, modelos de maturidade, simulação de Monte Carlo, análise de sentimento.
+3. **Proposta do artefato** – Sistema multiagente com inferência probabilística.
+4. **Desenvolvimento** – Implementação em camadas (frontend, backend, IA).
+5. **Avaliação** – Testes com dados simulados e validação de especialistas.
+
+### 2.2 Modelo de Desenvolvimento
+
+- **Iterativo/incremental** adaptado do Scrum (Sprints de 2 semanas).
+- **Ferramentas**: Git, GitHub, Docker, VSCode.
+
+---
+
+## 3. Requisitos do Sistema
+
+### 3.1 Requisitos Funcionais (RF)
+
+| ID | Descrição |
+|----|-----------|
+| RF01 | O sistema deve receber arquivos de áudio de reuniões e transcrevê‑los (diarização). |
+| RF02 | Deve realizar análise de sentimento do texto transcrito (polaridade, subjetividade, palavras de alerta). |
+| RF03 | Deve indexar documentos corporativos (políticas de risco, planos de continuidade, diretrizes LGPD) em um banco vetorial. |
+| RF04 | Deve calcular similaridade entre a transcrição e os documentos indexados, gerando um **fator de conformidade**. |
+| RF05 | Deve simular 50.000 cenários via Monte Carlo para calcular a probabilidade de crise, incorporando sentimento, maturidade, existência de plano, histórico de eventos e o fator de conformidade. |
+| RF06 | Deve classificar a probabilidade conforme ISO 22324 (VERDE, AMARELO, LARANJA, VERMELHO). |
+| RF07 | Deve gerar relatório técnico e, opcionalmente, um relatório narrativo explicativo (via LLM). |
+| RF08 | Deve fornecer uma API REST para integração com frontend e outros sistemas. |
+| RF09 | Deve registrar feedback do usuário e ajustar pesos do modelo (RLHF). |
+| RF10 | Deve respeitar a LGPD (consentimento, anonimização, descarte de áudio bruto). |
+
+### 3.2 Requisitos Não Funcionais (RNF)
+
+| ID | Descrição |
+|----|-----------|
+| RNF01 | Processamento de áudio de até 25 MB em menos de 2 minutos (para blocos de 5 minutos). |
+| RNF02 | Simulação de 50.000 cenários em menos de 3 segundos. |
+| RNF03 | Disponibilidade de 99,5% em horário comercial. |
+| RNF04 | Autenticação via API Key. |
+| RNF05 | Logs estruturados e rastreabilidade de decisões. |
+| RNF06 | Código aberto (MIT) e documentado em português/inglês. |
+
+---
+
+## 4. Arquitetura do Sistema
+
+### 4.1 Camadas
+
+Frontend (React/HTML/CSS) → API Gateway (FastAPI) → Serviços de IA
+↓
+Banco Vetorial (memória/Qdrant)
+PostgreSQL (relatórios, feedback)
+Redis (cache, filas)
+
+---
+
+## 4.2 Componentes da Arquitetura
 
 A arquitetura é dividida em três camadas principais:
 
@@ -131,7 +202,7 @@ C = 1 - \overline{S}_{\text{sim}}
 ### 6.1 Estrutura de Diretórios (Gerada pelo Script)
 
 ```
-c2m-final/
+c2m/
 ├── app/
 │   ├── api/routes/        # audio.py, reports.py, feedback.py, health.py, crisis.py, vector.py
 │   ├── core/              # config.py, dependencies.py
@@ -275,11 +346,3 @@ def test_monte_carlo_with_conformity():
 - Wooldridge, M., & Jennings, N. R. (1995). Intelligent agents: Theory and practice. *Knowledge Engineering Review*.
 
 ---
-
-## 13. Script Gerador do Projeto
-
-O projeto completo pode ser gerado automaticamente com o script Python `gerar_c2m_v2.py` (fornecido nas respostas anteriores). Ele cria toda a estrutura de pastas, códigos e arquivos de configuração, permitindo que qualquer pessoa recrie o ambiente em minutos.
-
----
-
-**Este documento serve como referência para equipes de desenvolvimento, pesquisadores e sistemas de IA que queiram compreender ou estender o C2M.**  
