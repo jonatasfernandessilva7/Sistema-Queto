@@ -13,3 +13,4 @@ data
 docs/docs_for_guide
 *.sqlite
 node_modules
+REPORTS_DIR
