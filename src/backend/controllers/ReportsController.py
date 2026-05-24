@@ -1,4 +1,5 @@
-from src.backend.services.ReportsService import viewAllReports, reportUpload
+from src.api.services.reports import viewAllReports, reportUpload
+from src.AiServices.services.AiReportsService import AiGenerateReportC2M
 from fastapi.responses import JSONResponse
 
 def get_reports():

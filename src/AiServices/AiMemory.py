@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import KMeans
-from src.AiServices.AiModels import EventModel
+from src.core.models import EventModel
 from src.backend.repository.GenericsRepository import (
     add_event_history, get_event_history, get_memory_state,
     update_system_status, get_system_status
@@ -13,7 +13,7 @@ def AiCompareEventsHistory(evento_atual: EventModel):
     historico = get_event_history()
 
     if not historico:
-        return "Nenhum evento semelhante encontrado.", None
+        return "No similar events found.", None
 
     documentos = [
         json.dumps(e['evento']) for e in historico
@@ -28,9 +28,9 @@ def AiCompareEventsHistory(evento_atual: EventModel):
 
     if maior_similaridade > 0.3:
         evento_similar = historico[indice_mais_similar]['evento'] 
-        return f"Evento semelhante encontrado com similaridade {maior_similaridade:.2f}", evento_similar
+        return f"Similar event found with similarity {maior_similaridade:.2f}", evento_similar
 
-    return "Nenhum evento semelhante encontrado.", None
+    return "No similar events found.", None
 
 def getEventHistory():
     return get_event_history()
@@ -46,7 +46,7 @@ def obter_estado_memoria():
 
 def clusterEvents(historico, k=3):
     if len(historico) < k:
-        return {"erro": f"Número de clusters {k} maior que eventos disponíveis."}
+        return {"erro": f"NNumber of clusters {k} is greater than the number of available events."}
 
     textos = [json.dumps(ev["evento"]) for ev in historico]
 

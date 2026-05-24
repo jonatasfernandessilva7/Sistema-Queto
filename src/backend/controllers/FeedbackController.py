@@ -1,7 +1,6 @@
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
-from src.backend.services.FeedbackService import service_submit_feedback
-from src.AiServices.services.AIFeedbackService import Feedback
+from src.api.services.feedback import service_submit_feedback, Feedback
 
 async def submit_feedback(feedback: Feedback):
      

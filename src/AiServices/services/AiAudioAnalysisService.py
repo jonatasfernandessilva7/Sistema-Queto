@@ -37,11 +37,6 @@ def audioAnalysisDetectWordsInText(text: str) -> str:
         return f"não encontrei nenhuma correspondencia"
     return ", ".join(correspondence)
 
-"""
-preciso separar as frequências pra identificar quantas pessoas estão falando no ambiente.
-Diarização
-"""
-
 def extracting_characteristics(audio_path, voices=10) -> int:
 
     """

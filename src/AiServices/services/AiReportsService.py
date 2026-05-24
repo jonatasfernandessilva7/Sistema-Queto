@@ -1,207 +1,185 @@
+"""
+Responsabilidades:
+  - Executar o pipeline C2M completo (via C2MOrchestrator)
+  - Serializar resultado em PDF estruturado (reportlab)
+  - Manter compatibilidade com a assinatura legada AiGeneretadReportsWithLlama
+
+Correção crítica aplicada:
+  - ANALYSIS_MODULE não é mais executado em import-time como coroutine síncrona.
+    A análise de documentos é feita de forma lazy dentro da função, evitando
+    o bug de `asyncio.coroutine` atribuído a uma variável global.
+"""
+
+from __future__ import annotations
+
 import io
+import logging
 import os
-import json
 import re
 
 from datetime import datetime
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.platypus import Image as RLImage
+from pathlib import Path
+from typing import Dict, Optional
+
+from fastapi import HTTPException
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.lib import colors
-from src.AiServices.AiModels import EventModel
-from src.backend.utils.ConnectionWithLlamaApiGroqUtils import llama_api_call
-from src.backend.controllers.DocumentAnalysisController import pdf_local_analysis
+from reportlab.platypus import (
+    Image as RLImage,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+)
 
-ARCHIVES_FOR_CONTEXT_PATH = "../../uploads"
-ANALYSIS_MODULE = pdf_local_analysis()
-A_MATURITY_MODEL = "../../docs/A_maturity_model.pdf"
-PRIORITY_LEVELS = ["Desconhecida", "Baixa", "Moderada", "Alta", "Crítico"]
+from src.agents.orchestrator.C2M_Orchestrator import C2MOrchestrator
+from src.core.config.settings import Settings
+from src.core.models import EventModel
 
-async def AiGeneretadReportsWithLlama(evento: EventModel, resposta: str, plano: list, type_event: str) -> str:
+log = logging.getLogger(__name__)
 
-    prompt = f"""
-Generate a **Technical Risk and Cyber Crisis Report** in **Portuguese**, **following ABNT standards**, based on the information and parameters below.
+REPORTS_DIR = Settings.REPORTS_DIR / "novos_relatorios"
+REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-**Objective:**
-Produce a **formal, technical, and visually** organized document, suitable for corporate use, containing a risk assessment, potential Cyber crises, and an action plan.
+_PRIORITY_COLOR_MAP = {
+    "crítico": colors.red,
+    "alta": colors.orange,
+    "moderada": colors.yellow,
+    "baixa": colors.green,
+    "desconhecida": colors.gray,
+}
 
-**Input data:**
+async def AiGenerateReportC2M(evento: EventModel) -> Dict:
+    """
+    Executa o pipeline C2M completo de 4 estágios e devolve o resultado
+    como dicionário JSON-serializável.
 
-{{
-  "event": "{evento.type}",
-  "source": "{evento.origin}",
-  "details": {json.dumps(evento.details, ensure_ascii=False)},
-  "reactive_response": "{resposta}",
-  "action_plan": {json.dumps(plano, ensure_ascii=False)},
-  "event_type": "{type_event}"
-}}
+    Returns
+    -------
+    dict
+        Chaves: status, mean_probability, mean_probability_pct, priority,
+        iso_22324, confidence_interval_95, percentiles, pearson_correlations,
+        std_deviation, conformity_factor, sentiment, risk_agents,
+        organizational_context, crisis_scenarios, decision_tree,
+        analysis_summary, low_risk_assessment
+    """
+    orchestrator = C2MOrchestrator()
+    result = await orchestrator.process_event(evento, use_llm_enhancement=True)
+    return result
 
-**Sources and context:**
 
-- Use the files in the {ARCHIVES_FOR_CONTEXT_PATH} directory as a basis for characterizing the organizational context.
+async def AiGeneretadReportsWithLlama(
+    evento: EventModel,
+    resposta: str = None,      # ignorado — mantido por compatibilidade
+    plano: list = None,        # ignorado — mantido por compatibilidade
+    type_event: str = None,    # ignorado — mantido por compatibilidade
+) -> str:
+    """
+    Interface legada: executa o pipeline C2M e retorna o sumário como string.
 
-- Use the {ANALYSIS_MODULE} module to analyze these files.
+    Os parâmetros resposta, plano e type_event são ignorados — o modelo C2M
+    completo substitui esses passos manuais.
+    """
+    log.info("AiGeneretadReportsWithLlama → delegando ao pipeline C2M")
 
-- Consider the analysis summary as the organization's baseline context.
-
-- Assess the level of organizational maturity and the ability to respond to risks and crises based on:
-    - ISO 22325:2016
-    - Article: A maturity model for enterprise risk management {A_MATURITY_MODEL}.
-
-**Report Requirements:**
-
-1. **Structure** in accordance with ABNT standards, with:
-
-    - Cover (title, details, person responsible)
-
-    - Summary
-
-    - Introduction
-
-    - Context of the Event
-
-    - Analysis of Possible Risks and Crises
-
-    - Escalation Scenarios
-
-    - Action Plan (ISO 22361:2022 and ISO 31000:2018)
-
-    - Priority Classification (ISO 22324:2022 – {PRIORITY_LEVELS})
-
-    - Calculation of Probability of Occurrence (Monte Carlo, 50,000 simulations per scenario)
-
-    - Conclusion with confidence/accuracy level (%)
-
-**2. Technical Content:**
-
-    - Formal language and specialized terminology in risk and crisis management.
-
-    - Visual clarity and organization to facilitate executive comprehension.
-
-    - No irrelevant information or noise.
-
-**3. Mandatory analysis:**
-
-    - Relate the event to the organizational context found in the files.
-
-    - Indicate potential risks, derived crises, and escalation methods.
-
-    - Assess the impact of organizational modernity on crisis response.
-
-    - Calculate the probability of each scenario occurring using the Monte Carlo method.
-
-    - Determine the priority level according to ISO 22324:2022.
-
-    - Present the confidence of the analysis as a percentage.
-
-**4. Tone of the report:**
-
-    - Professional, objective, and confident.
-
-    - Based on evidence and technical standards.
-
-**OBSERVATION**: Consider the full context of everything said. Even if there's some wording related to cybercrisis, if the context doesn't indicate a possible cybercrisis, don't raise the possibility of a crisis.
-"""
-    
     try:
-            
-        relatorio_final = await llama_api_call(prompt)
+        result = await AiGenerateReportC2M(evento)
 
-        return relatorio_final or "Relatório vazio gerado pela IA."
-    
-    except Exception as e:
-            
-        print(f"Erro ao gerar relatório com LLaMA via API (Groq): {e}")
+        if result.get("status") == "error":
+            raise HTTPException(
+                status_code=500,
+                detail=result.get("error_message", "Erro desconhecido no pipeline C2M"),
+            )
 
-        return f"Erro interno ao gerar relatório com a IA: {e}. Verifique logs."
+        return result.get("analysis_summary", "Relatório gerado pelo modelo C2M.")
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.error("Erro ao gerar relatório C2M: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar relatório: {exc}")
+
+def get_color_by_prioridade(prioridade: str) -> colors.Color:
+    """Mapeia prioridade para cor reportlab (ISO 22324)."""
+    return _PRIORITY_COLOR_MAP.get(prioridade.lower(), colors.gray)
 
 
-def get_color_by_prioridade(prioridade: str):
+def AiSaveReports(
+    relatorio_conteudo: str,
+    timestamp: str,
+    prioridade: str,
+) -> str:
+    """
+    Persiste o conteúdo do relatório como PDF em REPORTS_DIR.
 
-    cores = {
-        "Crítico": colors.red,
-        "Alta": colors.orange,
-        "Moderada": colors.yellow,
-        "Baixa": colors.green,
-        "Desconhecida": colors.gray
-    }
-
-    return cores.get(prioridade, colors.gray)
-
-def AiSaveReports(relatorio_conteudo: str, timestamp: str, prioridade: str) -> str:
-
-    pasta = os.path.join(os.path.dirname(__file__), "..", "relatorios/novos_relatorios")
-    os.makedirs(pasta, exist_ok=True)
-    nome_arquivo = os.path.join(pasta, f"relatorio_crise_{timestamp}.pdf")
-
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(nome_arquivo, pagesize=A4,
-                            rightMargin=2*cm, leftMargin=2*cm,
-                            topMargin=2*cm, bottomMargin=2*cm)
+    Returns
+    -------
+    str
+        Caminho absoluto do arquivo PDF gerado.
+    """
+    output_path = REPORTS_DIR / f"relatorio_crise_{timestamp}.pdf"
+    doc = SimpleDocTemplate(
+        str(output_path),
+        pagesize=A4,
+        rightMargin=2 * cm,
+        leftMargin=2 * cm,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
+    )
 
     styles = getSampleStyleSheet()
-
     cor_alerta = get_color_by_prioridade(prioridade)
 
-    estilo_prioridade = ParagraphStyle(
+    priority_style = ParagraphStyle(
         name="Prioridade",
         parent=styles["Heading2"],
         textColor=cor_alerta,
         fontSize=16,
-        spaceAfter=12
+        spaceAfter=12,
     )
 
-    story = []
+    story = [
+        Paragraph("<b>Sistema Queto — Relatório de Probabilidade de Crise Cibernética</b>", styles["Title"]),
+        Spacer(1, 12),
+        Paragraph(f"<b>Data e Hora:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", styles["Normal"]),
+        Spacer(1, 6),
+        Paragraph(f"<b>Nível de Prioridade (ISO 22324):</b> {prioridade}", priority_style),
+        Spacer(1, 12),
+    ]
 
-    story.append(Paragraph("<b>Sistema Queto - Relatório de Probabilidade de Crise</b>", styles["Title"]))
-    story.append(Spacer(1, 12))
+    for linha in relatorio_conteudo.strip().splitlines():
+        if not linha.strip():
+            continue
 
-    story.append(Paragraph(f"<b>Data e Hora:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", styles["Normal"]))
-    story.append(Spacer(1, 6))
+        texto = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", linha.strip())
+        texto = re.sub(r"\*(.+?)\*", r"<i>\1</i>", texto)
 
-    story.append(Paragraph(f"<b>Nível de Prioridade:</b> {prioridade}", estilo_prioridade))
-    story.append(Spacer(1, 12))
+        if texto.startswith("# "):
+            story.append(Paragraph(texto[2:], styles["h1"]))
+        elif texto.startswith("## "):
+            story.append(Paragraph(texto[3:], styles["h2"]))
+        elif texto.startswith("### "):
+            story.append(Paragraph(texto[4:], styles["h3"]))
+        else:
+            story.append(Paragraph(texto, styles["Normal"]))
 
-    for linha in relatorio_conteudo.strip().split("\n"):
-
-        if linha.strip():
-            linha_formatada = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", linha.strip())
-            linha_formatada = re.sub(r"\*(.+?)\*", r"<i>\1</i>", linha_formatada) 
-
-            if linha_formatada.startswith("# "):
-                story.append(Paragraph(linha_formatada[2:], styles["h1"]))
-            elif linha_formatada.startswith("## "):
-                story.append(Paragraph(linha_formatada[3:], styles["h2"]))
-            elif linha_formatada.startswith("### "):
-                story.append(Paragraph(linha_formatada[4:], styles["h3"]))
-            else:
-                story.append(Paragraph(linha_formatada, styles["Normal"]))
-
-            story.append(Spacer(1, 6))
-
-    caminho_img = os.path.join(os.path.dirname(__file__), "..", "image", "matriz_alerta_iso22324.png")
-
-    if os.path.exists(caminho_img):
-        story.append(Spacer(1, 12))
-        story.append(Paragraph("<b>Código de Cores de Alerta Baseado na ISO 22324:</b>", styles["Normal"]))
         story.append(Spacer(1, 6))
-        story.append(RLImage(caminho_img, width=16*cm, height=2*cm))
-    else:
-        print(f"Aviso: Imagem da matriz de alerta não encontrada em {caminho_img}")
-        story.append(Spacer(1, 12))
-        story.append(Paragraph("<i>(Imagem do código de cores não disponível)</i>", styles["Italic"]))
 
+    # Imagem de referência ISO 22324 (opcional)
+    img_path = Path(__file__).parent / ".." / "image" / "matriz_alerta_iso22324.png"
+    if img_path.exists():
+        story.extend([
+            Spacer(1, 12),
+            Paragraph("<b>Código de Cores — ISO 22324:</b>", styles["Normal"]),
+            Spacer(1, 6),
+            RLImage(str(img_path), width=16 * cm, height=2 * cm),
+        ])
 
     try:
-
         doc.build(story)
-
-        return nome_arquivo
-
-    except Exception as e:
-
-        print(f"Erro ao construir o PDF: {e}")
-
-        return f"Erro ao salvar o relatório em PDF: {e}"
+        log.info("Relatório PDF salvo: %s", output_path)
+        return str(output_path)
+    except Exception as exc:
+        log.error("Erro ao construir PDF: %s", exc)
+        raise RuntimeError(f"Erro ao salvar relatório PDF: {exc}") from exc

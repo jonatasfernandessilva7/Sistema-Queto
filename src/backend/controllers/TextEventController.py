@@ -7,15 +7,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 from dotenv import load_dotenv
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
-from src.AiServices.AiModels import EventModel
-from src.AiServices.AiMemory import (
-    AiAddingEventHistory,
-    AiCompareEventsHistory,
-)
-from src.AiServices.services.AiAnswerService import AiReactiveAnswer, AiDeliberativePlanning
-from src.AiServices.AiApprenticeship import AiClassifyEvent
-from src.AiServices.services.AiReportsService import AiGeneretadReportsWithLlama, AiSaveReports
-from src.backend.utils.EmailUtils import sendEmailReportLessAttachment
+from src.core.models import EventModel, add_event_to_history, compare_events_with_history
+from src.api.services.analysis import AiReactiveAnswer, AiDeliberativePlanning, AiClassifyEvent
+from src.api.services.reports import AiGeneretadReportsWithLlama, AiSaveReports
+from src.core.utils import sendEmailReportLessAttachment
 
 load_dotenv()
 
@@ -23,13 +18,13 @@ async def receiveEvent(evento: EventModel):
 
     try:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        AiAddingEventHistory({"evento": evento.model_dump(), "timestamp": timestamp})
+        add_event_to_history({"event": evento.model_dump(), "timestamp": timestamp})
 
         aiReactiveAnswer = AiReactiveAnswer(evento)
         aiDeliberativePlann = AiDeliberativePlanning(evento)
         priority = await AiClassifyEvent(evento)
 
-        similarMessage, similarEvent = AiCompareEventsHistory(evento)
+        similarMessage, similarEvent = compare_events_with_history(evento)
 
         relatorio = await AiGeneretadReportsWithLlama(evento, aiReactiveAnswer, aiDeliberativePlann, priority)
         aiReport = AiSaveReports(relatorio, timestamp, priority)

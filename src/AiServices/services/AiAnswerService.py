@@ -1,6 +1,6 @@
-from src.AiServices.AiModels import EventModel
+from src.core.models import EventModel
 from src.AiServices.AiMemory import atualizar_status_sistema
-from src.backend.utils.ConnectionWithLlamaApiGroqUtils import llama_api_call
+from src.core.utils.llama_api_utils import llama_api_call
 
 def AiReactiveAnswer(evento: EventModel) -> str:
 
@@ -12,49 +12,48 @@ def AiReactiveAnswer(evento: EventModel) -> str:
 
             atualizar_status_sistema(sistema, "falho") 
 
-            return f"Alerta: O sistema '{sistema}' está fora do ar. Iniciando protocolo de contingência."
+            return f"Alert: The system '{sistema}' is down. Initiating contingency protocol."
         
         else:
             
-            return "Alerta: Falha de sistema detectada, mas o sistema específico não foi identificado. Iniciando protocolo de contingência geral."
-        
+            return "Alert: System failure detected, but the specific system was not identified. Initiating general contingency protocol."
     elif evento.type == "ataque_cibernetico":
 
-        return "Ataque cibernético detectado! Acionando time de segurança e bloqueando tráfego suspeito."
+        return "Alert: Cyber attack detected! Activating security team and blocking suspicious traffic."
     
     else:
 
-        return "Evento recebido. Aguardando análise para resposta reativa."
+        return "Alert: Event received. Awaiting analysis for reactive response."
 
 def AiDeliberativePlanning(evento: EventModel) -> list[str]:
 
     if evento.type == "falha_sistema":
 
         return [
-            "Notificar equipe de TI sobre a falha do sistema.",
-            "Redirecionar o tráfego de usuários para sistemas de backup.",
-            "Gerar relatório preliminar para a diretoria."
+            "Notify the IT team about the system failure.",
+            "Redirect user traffic to backup systems.",
+            "Generate a preliminary report for the management."
         ]
     
     elif evento.type == "ataque_cibernetico":
 
         return [
-            "Isolar sistemas afetados para conter a propagação.",
-            "Analisar logs de segurança para identificar a origem e o vetor do ataque.",
-            "Comunicar stakeholders internos e externos conforme o plano de comunicação de crise."
+            "Isolate affected systems to contain the propagation.",
+            "Analyze security logs to identify the source and vector of the attack.",
+            "Communicate with internal and external stakeholders according to the crisis communication plan."
         ]
     
     elif evento.type == "alerta_generico":
 
         return [
-            "Coletar mais informações sobre o alerta.",
-            "Avaliar o impacto potencial.",
-            "Determinar a equipe responsável pela investigação."
+            "Collect more information about the alert.",
+            "Evaluate the potential impact.",
+            "Determine the team responsible for the investigation."
         ]
     
     else:
 
-        return ["Monitorar a situação e coletar dados adicionais para análise."]
+        return ["Monitor the situation and collect additional data for analysis."]
 
 async def gerar_resposta_llama_api(prompt: str) -> str:
     try:
@@ -65,6 +64,6 @@ async def gerar_resposta_llama_api(prompt: str) -> str:
     
     except Exception as e:
 
-        print(f"Erro ao gerar resposta com a IA (llama_api_call): {e}")
+        print(f"Error generating response with the AI (llama_api_call): {e}")
 
-        return "Erro ao gerar resposta com a IA. Por favor, tente novamente."
+        return "Error generating response with the AI. Please try again."

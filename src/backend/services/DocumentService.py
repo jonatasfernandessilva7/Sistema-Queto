@@ -1,106 +1,114 @@
+"""
+Gerencia upload, listagem e remoção de documentos corporativos.
+Após upload bem-sucedido, invalida o cache de embeddings do VectorSearchService
+para que o próximo cálculo de conformidade reflita os novos documentos.
+"""
+
+from __future__ import annotations
+
+import logging
 import os
 import uuid
+
 import aiofiles
-
-from fastapi import UploadFile, File, BackgroundTasks
+from fastapi import BackgroundTasks, File, UploadFile
 from fastapi.responses import FileResponse
-from typing import List, Dict
-from src.backend.repository.GenericsRepository import add_documentos, get_all_documentos, get_documentos_by_id, delete_document_by_id
+from pathlib import Path
+from typing import Dict, List, Optional
 
-UPLOAD_DIR = "../uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+from src.backend.repository.GenericsRepository import (
+    add_documentos,
+    delete_document_by_id,
+    get_all_documentos,
+    get_documentos_by_id,
+)
+from src.backend.services.VectorSearchService import invalidate_document_cache
+
+log = logging.getLogger(__name__)
+
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 async def saveDocumentsCompany(files: List[UploadFile] = File(...)) -> List[Dict]:
+    """
+    Salva arquivos no diretório de uploads e registra no banco.
+    Invalida o cache de embeddings do VectorSearchService após cada upload.
+    """
+    uploaded: List[Dict] = []
 
-    try:
-        uploaded_files_info = []
+    for file in files:
+        dest = UPLOAD_DIR / (file.filename or f"doc_{uuid.uuid4()}")
+        file_size = 0
 
-        for file in files:
-            file_location = os.path.join(UPLOAD_DIR, file.filename)
-            files_size = 0
-            
-            async with aiofiles.open(file_location, "wb") as buffer:
-                while content := await file.read(1024 * 1024):
-                    await buffer.write(content)
-                    files_size += len(content)
+        try:
+            async with aiofiles.open(dest, "wb") as buf:
+                while chunk := await file.read(1024 * 1024):
+                    await buf.write(chunk)
+                    file_size += len(chunk)
 
-            try:
-                add_documentos(file.filename, file_location)
-                uploaded_files_info.append({"filename": file.filename, "status": "Arquivo enviado com sucesso."})
+            add_documentos(file.filename, str(dest))
 
-            except Exception as e:
-                return [{"filename": file.filename, "error": e}]
-            
-    except Exception as e:
-        return e
-    return uploaded_files_info
+            # Invalidar cache: próxima conformidade recalculará embeddings
+            invalidate_document_cache()
+
+            log.info("Documento salvo: %s (%d bytes)", file.filename, file_size)
+            uploaded.append({"filename": file.filename, "status": "enviado com sucesso"})
+
+        except Exception as exc:
+            log.error("Erro ao salvar %s: %s", file.filename, exc)
+            uploaded.append({"filename": file.filename, "error": str(exc)})
+
+    return uploaded
 
 async def viewAllCompanyDocuments():
-
-    documents = await get_all_documentos()
-
-    try :
-        if not documents:
-            return False
-        return documents
-    
-    except Exception as e:
-        return e
+    """Lista todos os documentos persistidos."""
+    try:
+        docs = await get_all_documentos()
+        return docs if docs else False
+    except Exception as exc:
+        log.error("Erro ao listar documentos: %s", exc)
+        return exc
 
 async def viewAllCompanyDocumentsById(doc_id: int, background_tasks: BackgroundTasks):
-    """
-    Retrieves document content from DB, saves it temporarily, and prepares FileResponse.
-
-    Args:
-        doc_id: The ID of the document to view.
-        background_tasks: FastAPI's BackgroundTasks for cleanup.
-
-    Returns:
-        FileResponse if successful, None otherwise.
-    """
-    # Get filename and binary content from the database
-    filename_from_db, pdfContent = await get_documentos_by_id(doc_id)
-
-    if not pdfContent:
+    """Recupera e retorna um documento pelo ID como FileResponse."""
+    filename, pdf_bytes = await get_documentos_by_id(doc_id)
+    if not pdf_bytes:
         return None
 
-    temp_filename = f"{uuid.uuid4()}_{filename_from_db}"
-    temp_filepath = os.path.join(UPLOAD_DIR, temp_filename)
+    temp_name = f"{uuid.uuid4()}_{filename}"
+    temp_path = UPLOAD_DIR / temp_name
 
     try:
-        with open(temp_filepath, 'wb') as f:
-            f.write(pdfContent)
-        background_tasks.add_task(os.remove, temp_filepath)
-
+        with open(temp_path, "wb") as f:
+            f.write(pdf_bytes)
+        background_tasks.add_task(_remove_file, temp_path)
         return FileResponse(
-            path=temp_filepath,
+            path=str(temp_path),
             media_type="application/pdf",
-            filename=filename_from_db,
-            headers={"Content-Disposition": f'inline; filename="{filename_from_db}"'}
+            filename=filename,
+            headers={"Content-Disposition": f'inline; filename="{filename}"'},
         )
-    except Exception as e:
-        print(f"Error in document process (ID: {doc_id}): {e}")
-        if os.path.exists(temp_filepath):
-            os.remove(temp_filepath)
+    except Exception as exc:
+        log.error("Erro ao servir doc_id=%d: %s", doc_id, exc)
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
         return None
 
 def delete_document_service(doc_id: int):
-    """
-    Handles the deletion of a document, including database record and potential temporary files.
-
-    Args:
-        doc_id: The ID of the document to delete.
-
-    Returns:
-        A dictionary indicating success or failure.
-    """
+    """Remove documento do banco e do cache de embeddings."""
     try:
         deleted = delete_document_by_id(doc_id)
         if deleted:
-            return {"message": f"Document with id {doc_id} deleted."}
-        else:
-            return {"message": f"Document with id {doc_id} not found or not deleted."}, 404
+            invalidate_document_cache(doc_id)
+            return {"message": f"Documento {doc_id} removido."}
+        return {"message": f"Documento {doc_id} não encontrado."}, 404
+    except Exception as exc:
+        log.error("Erro ao remover doc_id=%d: %s", doc_id, exc)
+        return {"message": "Erro interno."}, 500
 
-    except Exception as e:
-        print(f"Error in delete document id (ID: {doc_id}): {e}")
-        return {"message": "Internal error."}, 500
+def _remove_file(path: Path) -> None:
+    """Remove arquivo temporário — usado em BackgroundTasks."""
+    try:
+        path.unlink(missing_ok=True)
+    except Exception as exc:
+        log.warning("Não foi possível remover %s: %s", path, exc)
