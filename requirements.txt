@@ -1,59 +1,25 @@
-# -------------------------
-# Core Web / API
-# -------------------------
-fastapi==0.115.6
-httpx==0.27.2
-python-dotenv==1.0.1
-aiofiles==23.2.1
-pydantic==2.9.2
-
-# -------------------------
-# ASGI Server (prod)
-# -------------------------
-uvicorn[standard]==0.30.6
-
-# -------------------------
-# LangChain / LLM / Agents
-# -------------------------
-langchain==0.2.17
-langchain-core==0.2.43
-langchain-groq==0.1.10
-langgraph==0.2.40
-groq==0.11.0
-
-# -------------------------
-# Machine Learning / NLP
-# -------------------------
-numpy==1.26.4
-scipy==1.13.1
-scikit-learn==1.7.2
-sentence-transformers==3.0.1
-textblob==0.18.0.post0
-
-# -------------------------
-# Audio / Signal Processing
-# -------------------------
-librosa==0.10.2.post1
-sounddevice==0.4.7
-psutil==5.9.8
-python-multipart==0.0.22
-
-# -------------------------
-# Visualization
-# -------------------------
-matplotlib==3.9.2
-Pillow==10.4.0
-
-# -------------------------
-# PDF / OCR
-# -------------------------
-pdfplumber==0.11.4
+aiofiles==25.1.0
+fastapi==0.136.1
+groq
+httpx==0.28.1
+langchain
+langchain_core
+langchain_groq
+langgraph
+librosa==0.11.0
+matplotlib==3.10.9
+numpy==2.4.6
 pdf2image==1.17.0
-pytesseract==0.3.10
-reportlab==4.2.2
-
-# -------------------------
-# Testing
-# -------------------------
-pytest==8.3.4
-pytest-asyncio==0.23.8
+pdfplumber==0.11.9
+Pillow==12.2.0
+psutil==7.2.2
+pydantic==2.13.4
+pytesseract==0.3.13
+pytest==9.0.3
+python-dotenv==1.2.2
+reportlab==4.5.1
+scikit_learn==1.8.0
+scipy==1.17.1
+sentence_transformers==5.5.1
+sounddevice==0.5.5
+textblob==0.20.0
