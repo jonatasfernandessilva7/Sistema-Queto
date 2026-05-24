@@ -1,9 +1,3 @@
-"""
-C2M Orchestrator Module - Cyber Crisis Management Model
-
-Exporta componentes principais do modelo C2M para fácil importação
-"""
-
 from src.agents.orchestrator.C2M_Models import (
     SentimentAnalysisC2M,
     RiskAgentC2M,
@@ -22,7 +16,8 @@ from src.agents.orchestrator.SupervisorContinuityRecovery import SupervisorConti
 
 from src.agents.orchestrator.C2M_Analysis import (
     DecisionTreeAnalyzer,
-    MonteCarloProbabilityCalculator
+    MonteCarloProbabilityCalculator,
+    MonteCarloResult,
 )
 
 from src.agents.orchestrator.C2M_Orchestrator import C2MOrchestrator
@@ -43,6 +38,7 @@ __all__ = [
     # Analysis
     "DecisionTreeAnalyzer",
     "MonteCarloProbabilityCalculator",
+    "MonteCarloResult",
     # Orchestrator
     "C2MOrchestrator",
     # Constants

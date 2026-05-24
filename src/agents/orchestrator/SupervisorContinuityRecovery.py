@@ -1,282 +1,303 @@
 """
-Supervisor 3: Continuidade e Recuperação
-Monitora capacidade de continuidade e recuperação da organização
+Supervisor 3 — Continuidade e Recuperação (C2M)
+
+Responsabilidades:
+  1. Coletar contexto organizacional real a partir de documentos no repositório
+  2. Avaliar maturidade organizacional (ISO 22325, modelo Oliva 2016)
+  3. Verificar existência de planos (risco, crise, continuidade, recuperação)
+  4. Contar eventos similares no histórico (variável H do Monte Carlo)
+  5. Calcular score de resiliência
 
 Integra com:
-- DocumentAnalysisService (análise de PDFs/documentos)
-- EventHistory (histórico de eventos)
+  - DocumentAnalysisService (extração de texto de PDF)
+  - GenericsRepository (histórico de eventos do banco)
 """
 
+from __future__ import annotations
+
 import logging
+import re
+import time
 from pathlib import Path
 from typing import Dict, Optional
-from src.core.config.settings import Settings
+
 from src.agents.orchestrator.C2M_Models import OrganizationalContextC2M
 from src.api.services.analysis import extract_text
+from src.backend.repository.GenericsRepository import get_event_history
+from src.core.config.settings import Settings
 
 log = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Keywords para cada tipo de plano (PT + EN)
+# ---------------------------------------------------------------------------
+_PLAN_KEYWORDS: Dict[str, list] = {
+    "risk": [
+        "risco", "risk", "iso 31000", "risk management",
+        "gestão de riscos", "gerenciamento de riscos",
+    ],
+    "crisis": [
+        "crise", "crisis", "cyber crisis", "crise cibernética",
+        "plano de crise", "crisis management", "iso 22361",
+    ],
+    "continuity": [
+        "continuidade", "continuity", "business continuity",
+        "plano de continuidade", "bcp", "iso 22301",
+    ],
+    "recovery": [
+        "recuperação", "recovery", "disaster recovery",
+        "plano de recuperação", "drp", "rto", "rpo",
+    ],
+}
+
+_GOVERNANCE_KEYWORDS = [
+    "governança", "governance", "iso 22325", "capability assessment",
+    "política de segurança", "security policy", "comitê", "committee",
+    "iso 27001",
+]
+
+# Tipos de evento considerados "similares" para cálculo de λ (Poisson)
+_CYBER_EVENT_TYPES = frozenset({
+    "ataque_cibernetico", "ataque", "breach", "ransomware", "malware",
+    "falha_sistema", "indisponibilidade", "vazamento", "leak",
+    "comprometimento", "violação",
+})
+
+# TTL do cache de contexto: 3 600 segundos = 1 hora
+_CACHE_TTL_SECONDS = 3_600
 
 
 class SupervisorContinuityRecovery:
     """
-    Agente Supervisor 3: Continuidade e Recuperação
-    
-    Responsabilidades:
-    1. Coletar contexto organizacional real de documentos
-    2. Avaliar maturidade organizacional (ISO 22325)
-    3. Validar existência de planos (risco, crise, continuidade, recuperação)
-    4. Calcular score de resiliência
+    Agente Supervisor 3 — Continuidade e Recuperação.
+
+    Coleta e devolve um OrganizationalContextC2M que alimenta:
+      - a Decision Tree (governança, maturidade)
+      - o Monte Carlo (variáveis M, P, H)
     """
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         self.name = "Supervisor Continuidade e Recuperação"
         self.monitors = [
             "Plano de Desastre (DR)",
             "Plano de Continuidade (BC)",
             "Simulações e Testes",
-            "Backups e Replicação"
+            "Backups e Replicação",
         ]
-        
-        self.uploads_dir = Settings.UPLOADS_DIR
-        self.cache = {}
-    
+        self.uploads_dir: Path = Settings.UPLOADS_DIR
+
+        # Cache simples com TTL
+        self._cache: Optional[OrganizationalContextC2M] = None
+        self._cache_ts: float = 0.0
+
+    # -----------------------------------------------------------------------
+    # Ponto de entrada público
+    # -----------------------------------------------------------------------
+
     async def collect_organizational_context(self) -> OrganizationalContextC2M:
-        """
-        Coleta contexto organizacional real
-        
-        Estratégia:
-        1. Procurar arquivos em UPLOADS_DIR
-        2. Extrair informações de documentos
-        3. Calcular maturidade
-        4. Validar planos
-        
-        Retorna: OrganizationalContextC2M com dados reais
-        """
-        
-        # Verificar cache primeiro
-        if "context_cache" in self.cache:
-            log.info("Retornando contexto do cache")
-            return self.cache["context_cache"]
-        
+        """Coleta (ou retorna do cache) o contexto organizacional."""
+        now = time.monotonic()
+        if self._cache is not None and (now - self._cache_ts) < _CACHE_TTL_SECONDS:
+            log.debug("Supervisor 3: retornando contexto do cache")
+            return self._cache
+
         context = OrganizationalContextC2M(
             maturity_level=await self._extract_maturity_level(),
             has_risk_plan=await self._check_plan_exists("risk"),
             has_crisis_plan=await self._check_plan_exists("crisis"),
             has_continuity_plan=await self._check_plan_exists("continuity"),
             has_recovery_plan=await self._check_plan_exists("recovery"),
-            historical_similar_events=await self._count_similar_events(),
-            formal_governance=await self._check_formal_governance()
+            historical_similar_events=self._count_similar_events(),
+            formal_governance=await self._check_formal_governance(),
         )
-        
-        # Cache por 1 hora (em produção, usar TTL)
-        self.cache["context_cache"] = context
-        
-        log.info(f"""
-        ════════════════════════════════════════════════════
-        CONTEXTO ORGANIZACIONAL COLETADO:
-        ════════════════════════════════════════════════════
-        Maturidade: {context.maturity_level}/5.0 (ISO 22325)
-        Plano de Riscos: {'✓' if context.has_risk_plan else '✗'}
-        Plano de Crise: {'✓' if context.has_crisis_plan else '✗'}
-        Plano de Continuidade: {'✓' if context.has_continuity_plan else '✗'}
-        Plano de Recuperação: {'✓' if context.has_recovery_plan else '✗'}
-        Governança Formal: {'✓' if context.formal_governance else '✗'}
-        Eventos Similares (histórico): {context.historical_similar_events}
-        ════════════════════════════════════════════════════
-        """)
-        
+
+        self._cache = context
+        self._cache_ts = now
+
+        log.info(
+            "\n"
+            "════════════════════════════════════════════════════\n"
+            "CONTEXTO ORGANIZACIONAL COLETADO:\n"
+            "════════════════════════════════════════════════════\n"
+            "  Maturidade:          %.1f / 5.0  (ISO 22325)\n"
+            "  Plano de Riscos:     %s\n"
+            "  Plano de Crise:      %s\n"
+            "  Plano Continuidade:  %s\n"
+            "  Plano de Recovery:   %s\n"
+            "  Governança Formal:   %s\n"
+            "  Eventos similares:   %d  (λ para Poisson)\n"
+            "════════════════════════════════════════════════════",
+            context.maturity_level,
+            "✓" if context.has_risk_plan else "✗",
+            "✓" if context.has_crisis_plan else "✗",
+            "✓" if context.has_continuity_plan else "✗",
+            "✓" if context.has_recovery_plan else "✗",
+            "✓" if context.formal_governance else "✗",
+            context.historical_similar_events,
+        )
         return context
-    
-    async def _extract_maturity_level(self) -> float:
-        """
-        Extrai nível de maturidade (1-5) baseado em:
-        1. Documento "A_maturity_model.pdf" ou similar
-        2. Presença e qualidade de planos
-        
-        Retorna: float entre 1.0 e 5.0
-        """
-        
-        # Procurar arquivo de modelo de maturidade
-        maturity_files = [
-            "A_maturity_model.pdf",
-            "maturity_model.pdf",
-            "modelo_maturidade.pdf",
-            "capability_assessment.pdf"
-        ]
-        
-        if not self.uploads_dir.exists():
-            log.warning(f"Diretório UPLOADS não encontrado: {self.uploads_dir}")
-            return 2.0  # Default: baixa maturidade
-        
-        for maturity_file in maturity_files:
-            file_path = self.uploads_dir / maturity_file
-            if file_path.exists():
-                try:
-                    text = await self._safe_extract_text(file_path)
-                    maturity = self._parse_maturity_from_text(text)
-                    if maturity > 0:
-                        log.info(f"Maturidade extraída de {maturity_file}: {maturity}")
-                        return maturity
-                except Exception as e:
-                    log.warning(f"Erro ao processar {maturity_file}: {e}")
-        
-        # Fallback: inferir de planos presentes
-        plan_count = sum([
-            await self._check_plan_exists("risk"),
-            await self._check_plan_exists("crisis"),
-            await self._check_plan_exists("continuity"),
-            await self._check_plan_exists("recovery")
-        ])
-        
-        # 0 planos = 1.0, 1= 2.0, 2=3.0, 3=4.0, 4=5.0
-        inferred_maturity = 1.0 + (plan_count * 1.0)
-        log.info(f"Maturidade inferida de planos presentes: {inferred_maturity}")
-        
-        return min(5.0, inferred_maturity)
-    
-    async def _check_plan_exists(self, plan_type: str) -> bool:
-        """Verifica se um tipo de plano existe"""
-        
-        plan_keywords = {
-            "risk": ["risco", "risk", "iso 31000", "risk management", "gestão de riscos"],
-            "crisis": ["crise", "crisis", "cyber crisis", "crise cibernética", "plano de crise"],
-            "continuity": ["continuidade", "continuity", "bc", "business continuity", "plano de continuidade"],
-            "recovery": ["recuperação", "recovery", "dr", "disaster recovery", "plano de recuperação"]
-        }
-        
-        if plan_type not in plan_keywords:
-            return False
-        
-        keywords = plan_keywords[plan_type]
-        
-        if not self.uploads_dir.exists():
-            return False
-        
-        for file_path in self.uploads_dir.glob("*"):
-            if file_path.suffix.lower() not in ['.pdf', '.docx', '.txt', '.doc']:
-                continue
-            
-            try:
-                text = await self._safe_extract_text(file_path)
-                text_lower = text.lower()
-                
-                if any(keyword in text_lower for keyword in keywords):
-                    log.info(f"Plano de {plan_type} encontrado: {file_path.name}")
-                    return True
-            except Exception as e:
-                log.debug(f"Erro ao verificar {file_path.name}: {e}")
-                continue
-        
-        return False
-    
-    async def _check_formal_governance(self) -> bool:
-        """Verifica se há política formal de governança"""
-        
-        governance_keywords = [
-            "governança", "governance", "iso 22325", "capability assessment",
-            "política de segurança", "security policy", "comitê", "committee"
-        ]
-        
-        if not self.uploads_dir.exists():
-            return False
-        
-        for file_path in self.uploads_dir.glob("*"):
-            if file_path.suffix.lower() not in ['.pdf', '.docx', '.txt', '.doc']:
-                continue
-            
-            try:
-                text = await self._safe_extract_text(file_path)
-                text_lower = text.lower()
-                
-                if any(keyword in text_lower for keyword in governance_keywords):
-                    log.info(f"Governança formal detectada em: {file_path.name}")
-                    return True
-            except:
-                continue
-        
-        return False
-    
-    async def _count_similar_events(self) -> int:
-        """
-        Conta eventos similares no histórico
-        
-        TODO: Integrar com EventRepository para consultar DB
-        """
-        # Por enquanto, retornar 0 (será implementado com DB)
-        return 0
-    
-    async def _safe_extract_text(self, file_path: Path) -> str:
-        """Extrai texto de arquivo com erro handling"""
-        try:
-            return extract_text(str(file_path))
-        except Exception as e:
-            log.debug(f"Erro ao extrair texto de {file_path}: {e}")
-            return ""
-    
-    @staticmethod
-    def _parse_maturity_from_text(text: str) -> float:
-        """
-        Procura por nível de maturidade explícito no texto
-        
-        Padrões: "nível 3", "level 3", "maturity level: 3"
-        """
-        import re
-        
-        text_lower = text.lower()
-        
-        # Procurar padrões como "nível 3", "level 3"
-        patterns = [
-            r'nível\s+(\d)',
-            r'level\s+(\d)',
-            r'maturity\s+level[\s:]+(\d)',
-            r'nível de maturidade[\s:]+(\d)',
-            r'capability level[\s:]+(\d)'
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, text_lower)
-            if match:
-                level = int(match.group(1))
-                if 1 <= level <= 5:
-                    return float(level)
-        
-        return 0.0  # Não encontrou
-    
+
+    def invalidate_cache(self) -> None:
+        """Força recoleta na próxima chamada (usar após upload de novo documento)."""
+        self._cache = None
+        self._cache_ts = 0.0
+
+    # -----------------------------------------------------------------------
+    # Score de resiliência
+    # -----------------------------------------------------------------------
+
     def assess_resilience(self, context: OrganizationalContextC2M) -> float:
         """
-        Avalia score de resiliência (0-1)
-        
-        Fatores:
-        - Existência de planos (40%)
-        - Nível de maturidade (40%)
-        - Governança formal (20%)
-        
-        Retorna: 0.0 a 1.0
+        Score de resiliência ∈ [0, 1]:
+          - Existência de planos (40%)
+          - Maturidade (40%)
+          - Governança formal (20%)
         """
-        
-        # Fator 1: Planos (0-0.4)
         plans = [
             context.has_risk_plan,
             context.has_crisis_plan,
             context.has_continuity_plan,
-            context.has_recovery_plan
+            context.has_recovery_plan,
         ]
-        plans_score = sum(plans) / len(plans) * 0.4
-        
-        # Fator 2: Maturidade (0-0.4)
-        maturity_normalized = context.maturity_level / 5.0
-        maturity_score = maturity_normalized * 0.4
-        
-        # Fator 3: Governança (0-0.2)
+        plans_score = (sum(plans) / len(plans)) * 0.4
+        maturity_score = (context.maturity_level / 5.0) * 0.4
         governance_score = 0.2 if context.formal_governance else 0.0
-        
-        total = plans_score + maturity_score + governance_score
-        
-        return min(1.0, total)
+        return float(min(1.0, plans_score + maturity_score + governance_score))
+
+    # -----------------------------------------------------------------------
+    # Implementações privadas
+    # -----------------------------------------------------------------------
+
+    async def _extract_maturity_level(self) -> float:
+        """
+        Extrai maturidade (1–5) de documentos ou infere da presença de planos.
+
+        Prioridade:
+          1. Arquivo de modelo de maturidade explícito
+          2. Inferência a partir do número de planos encontrados
+        """
+        maturity_files = [
+            "A_maturity_model.pdf",
+            "maturity_model.pdf",
+            "modelo_maturidade.pdf",
+            "capability_assessment.pdf",
+        ]
+
+        if self.uploads_dir.exists():
+            for fname in maturity_files:
+                fpath = self.uploads_dir / fname
+                if fpath.exists():
+                    text = self._safe_extract_text(fpath)
+                    level = self._parse_maturity_from_text(text)
+                    if level > 0:
+                        log.info("Maturidade extraída de %s: %.1f", fname, level)
+                        return level
+
+        # Fallback: inferir da presença de planos
+        plan_count = sum([
+            await self._check_plan_exists("risk"),
+            await self._check_plan_exists("crisis"),
+            await self._check_plan_exists("continuity"),
+            await self._check_plan_exists("recovery"),
+        ])
+        inferred = min(5.0, 1.0 + float(plan_count))
+        log.info("Maturidade inferida de planos presentes (%d planos): %.1f", plan_count, inferred)
+        return inferred
+
+    async def _check_plan_exists(self, plan_type: str) -> bool:
+        """Verifica se um tipo de plano está presente nos documentos."""
+        keywords = _PLAN_KEYWORDS.get(plan_type, [])
+        if not keywords or not self.uploads_dir.exists():
+            return False
+
+        for fpath in self.uploads_dir.glob("*"):
+            if fpath.suffix.lower() not in {".pdf", ".docx", ".txt", ".doc"}:
+                continue
+            text = self._safe_extract_text(fpath).lower()
+            if any(kw in text for kw in keywords):
+                log.debug("Plano '%s' encontrado em: %s", plan_type, fpath.name)
+                return True
+        return False
+
+    async def _check_formal_governance(self) -> bool:
+        """Verifica se há política formal de governança nos documentos."""
+        if not self.uploads_dir.exists():
+            return False
+
+        for fpath in self.uploads_dir.glob("*"):
+            if fpath.suffix.lower() not in {".pdf", ".docx", ".txt", ".doc"}:
+                continue
+            text = self._safe_extract_text(fpath).lower()
+            if any(kw in text for kw in _GOVERNANCE_KEYWORDS):
+                log.debug("Governança formal detectada em: %s", fpath.name)
+                return True
+        return False
+
+    def _count_similar_events(self) -> int:
+        """
+        Conta eventos de natureza cibernética no histórico persistido (SQLite).
+
+        Este valor alimenta λ da distribuição Poisson no Monte Carlo (variável H).
+        A contagem inclui todos os tipos de evento classificados como cyber-related
+        pela lista _CYBER_EVENT_TYPES.
+
+        Returns
+        -------
+        int
+            Número de eventos similares no banco de dados.
+        """
+        try:
+            history = get_event_history()  # lista de dicts com chave "evento"
+            count = sum(
+                1
+                for record in history
+                if record.get("evento", {}).get("tipo", "").lower()
+                in _CYBER_EVENT_TYPES
+                or record.get("evento", {}).get("type", "").lower()
+                in _CYBER_EVENT_TYPES
+            )
+            log.debug("Eventos similares no histórico: %d", count)
+            return count
+        except Exception as exc:
+            log.warning("Erro ao contar eventos históricos: %s", exc)
+            return 0
+
+    # -----------------------------------------------------------------------
+    # Helpers de extração de texto
+    # -----------------------------------------------------------------------
+
+    def _safe_extract_text(self, fpath: Path) -> str:
+        """Extrai texto de arquivo com tratamento de erro."""
+        try:
+            return extract_text(str(fpath))
+        except Exception as exc:
+            log.debug("Erro ao extrair texto de %s: %s", fpath.name, exc)
+            return ""
+
+    @staticmethod
+    def _parse_maturity_from_text(text: str) -> float:
+        """Procura nível de maturidade explícito no texto (padrões PT/EN)."""
+        patterns = [
+            r"n[íi]vel\s+de\s+maturidade[\s:]+(\d)",
+            r"n[íi]vel\s+(\d)",
+            r"maturity\s+level[\s:]+(\d)",
+            r"level\s+(\d)",
+            r"capability\s+level[\s:]+(\d)",
+        ]
+        text_lower = text.lower()
+        for pattern in patterns:
+            m = re.search(pattern, text_lower)
+            if m:
+                level = int(m.group(1))
+                if 1 <= level <= 5:
+                    return float(level)
+        return 0.0
 
 
-# Para facilitar uso
+# ---------------------------------------------------------------------------
+# Helper de módulo
+# ---------------------------------------------------------------------------
+
 async def collect_context() -> OrganizationalContextC2M:
-    """Função helper para coletar contexto"""
-    supervisor = SupervisorContinuityRecovery()
-    return await supervisor.collect_organizational_context()
+    """Atalho para coletar contexto com instância fresh do Supervisor 3."""
+    return await SupervisorContinuityRecovery().collect_organizational_context()
