@@ -9,7 +9,7 @@ from functools import partial
 from pdf2image import convert_from_path
 from PIL import Image
 from sentence_transformers import SentenceTransformer, util
-from src.backend.utils.ConnectionWithLlamaApiGroqUtils import llama_api_call
+from src.core.utils.llama_api_utils import llama_api_call
 
 log = logging.getLogger(__name__)
 
