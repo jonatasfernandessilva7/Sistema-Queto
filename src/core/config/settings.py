@@ -25,7 +25,11 @@ class Settings:
     TEMP_DIR = DATA_ROOT / "temp"
     
     # Database
-    DATABASE_NAME = os.getenv("DATABASE_NAME", "memoria.db")
+    _db_name = os.getenv("DATABASE_NAME", "memoria.db")
+    # Handle SQLite URL format (e.g., "sqlite:///./queto.db" -> "queto.db")
+    if _db_name.startswith("sqlite:"):
+        _db_name = _db_name.split("/")[-1]
+    DATABASE_NAME = _db_name if _db_name else "memoria.db"
     DATABASE_PATH = PROJECT_ROOT / DATABASE_NAME
     
     # API
