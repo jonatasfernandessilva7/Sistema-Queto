@@ -9,9 +9,12 @@ from src.backend.repository import GenericsRepository as repo
 
 
 def test_save_report_with_document(monkeypatch):
-    # Override connect_db to use in-memory sqlite for tests
+    # Create a single in-memory database that persists for the test
+    test_db = sqlite3.connect(':memory:', check_same_thread=False)
+    
     def connect_db_override():
-        return sqlite3.connect(':memory:')
+        # Return the same in-memory database for all calls
+        return test_db
 
     monkeypatch.setattr(repo, 'connect_db', connect_db_override)
 
@@ -38,3 +41,6 @@ def test_save_report_with_document(monkeypatch):
         assert row is not None
         assert row[0] == doc_id
         assert row[1] == b'report bytes'
+    
+    # Cleanup
+    test_db.close()

@@ -2,14 +2,15 @@ from pathlib import Path
 from fastapi import HTTPException
 from typing import List, Dict
 from fastapi.responses import JSONResponse
-from src.backend.services.DocumentAnalysisService import (
+from src.api.services.analysis import (
     extract_images,
     extract_tables,
     extract_text,
     resume_text
 )
+from src.core.config.settings import Settings
 
-COMPANY_FILE_FOLDER = Path("../uploads")
+COMPANY_FILE_FOLDER = Settings.UPLOADS_DIR
 
 async def pdf_local_analysis() -> JSONResponse:
     if not COMPANY_FILE_FOLDER.exists() or not COMPANY_FILE_FOLDER.is_dir():

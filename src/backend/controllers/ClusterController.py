@@ -6,17 +6,14 @@ from fastapi.responses import JSONResponse
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..")))
 
 from fastapi import HTTPException
-from src.AiServices.AiMemory import (
-    clusterEvents,
-    getEventHistory
-)
+from src.core.models import cluster_events, get_event_history_data
 
 def get_cluster_events(k: int = 3):
 
-    history = getEventHistory()
+    history = get_event_history_data()
 
     try:
-        cluster = clusterEvents(history, k)
+        cluster = cluster_events(history, k)
         return JSONResponse(content={"status":200, "events": cluster})
     
     except Exception as e:

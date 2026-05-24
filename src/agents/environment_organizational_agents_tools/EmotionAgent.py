@@ -18,7 +18,7 @@ from langchain_core.tools import tool
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, END
 
-from src.AiServices.services.AiEmotionAnalysisService import emotionAnalysis
+from src.api.services.analysis import emotionAnalysis
 
 GROQ_API_KEY = os.getenv("API_KEY")
 

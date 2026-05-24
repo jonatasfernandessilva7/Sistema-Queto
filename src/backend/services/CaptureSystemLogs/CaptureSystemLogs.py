@@ -2,7 +2,10 @@ import platform
 import subprocess
 import os
 import psutil
+import logging
 from datetime import datetime
+
+log = logging.getLogger(__name__)
 
 # Definindo o nome do arquivo de logs
 LOG_FILENAME = "coleta_de_logs_sistema.log"
@@ -18,14 +21,27 @@ def get_process_list():
                 'usuario': pinfo['username'],
                 'inicio': datetime.fromtimestamp(pinfo['create_time']).strftime("%Y-%m-%d %H:%M:%S")
             })
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        except psutil.NoSuchProcess:
+            # Process ended between iteration and access
             pass
+        except psutil.AccessDenied:
+            # No permission to access process info
+            pass
+        except psutil.ZombieProcess:
+            # Zombie process
+            pass
+        except ValueError as e:
+            # Invalid timestamp
+            log.debug(f"Error converting process timestamp: {e}")
     return processos
 
 def write_log(message):
     """Escreve a mensagem no arquivo de log com timestamp."""
-    with open(LOG_FILENAME, "a") as f:
-        f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
+    try:
+        with open(LOG_FILENAME, "a") as f:
+            f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
+    except IOError as e:
+        log.error(f"Error writing to log file: {e}")
 
 def coletar_logs_windows():
     """
@@ -39,13 +55,28 @@ def coletar_logs_windows():
         # O comando wevtutil query-events é ideal para isso
         # Filtramos por ID de Evento: 4624 (logon) e 4634 (logoff)
         command = 'wevtutil query-events "Security" /q:"*[System[(EventID=4624 or EventID=4634)]]"'
-        process = subprocess.run(command, shell=True, capture_output=True, text=True, encoding='utf-8')
         
-        if process.returncode == 0:
-            write_log("Logs de Logon/Logoff (Visualizador de Eventos - Segurança):")
-            write_log(process.stdout)
-        else:
-            write_log(f"Erro ao coletar logs de segurança: {process.stderr}")
+        try:
+            process = subprocess.run(
+                command, 
+                shell=True, 
+                capture_output=True, 
+                text=True, 
+                encoding='utf-8',
+                timeout=30
+            )
+            
+            if process.returncode == 0:
+                write_log("Logs de Logon/Logoff (Visualizador de Eventos - Segurança):")
+                write_log(process.stdout)
+            else:
+                log.warning(f"Erro ao coletar logs de segurança: {process.stderr}")
+                write_log(f"Erro ao coletar logs de segurança: {process.stderr}")
+                
+        except subprocess.TimeoutExpired:
+            error_msg = "Timeout ao coletar logs de segurança"
+            log.warning(error_msg)
+            write_log(error_msg)
 
         # Coleta de aplicações ativas
         write_log("--- Aplicações e Processos Ativos ---")
@@ -64,8 +95,18 @@ def coletar_logs_windows():
         else:
             write_log("Nenhuma aplicação relevante encontrada.")
             
+    except subprocess.SubprocessError as e:
+        error_msg = f"Erro ao executar subprocess: {e}"
+        log.error(error_msg)
+        write_log(error_msg)
+    except OSError as e:
+        error_msg = f"Erro de sistema operacional: {e}"
+        log.error(error_msg)
+        write_log(error_msg)
     except Exception as e:
-        write_log(f"Erro inesperado durante a coleta de logs do Windows: {e}")
+        error_msg = f"Erro inesperado durante a coleta de logs do Windows: {e}"
+        log.error(error_msg)
+        write_log(error_msg)
     finally:
         write_log("--- Coleta de logs no Windows finalizada ---\n")
 
@@ -83,13 +124,37 @@ def coletar_logs_linux():
             auth_log = "/var/log/secure"
             
         if os.path.exists(auth_log):
-            write_log("Logs de Autenticação (Login/Logout):")
-            # Usa 'grep' para encontrar eventos de 'session opened' ou 'session closed'
-            command = f"grep -E 'session opened|session closed' {auth_log} | tail -n 50"
-            process = subprocess.run(command, shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
-            write_log(process.stdout)
+            try:
+                write_log("Logs de Autenticação (Login/Logout):")
+                # Usa 'grep' para encontrar eventos de 'session opened' ou 'session closed'
+                command = f"grep -E 'session opened|session closed' {auth_log} | tail -n 50"
+                process = subprocess.run(
+                    command, 
+                    shell=True, 
+                    capture_output=True, 
+                    text=True,
+                    timeout=30
+                )
+                
+                if process.returncode == 0:
+                    write_log(process.stdout)
+                else:
+                    # grep returns 1 if no matches found, which is not an error
+                    if process.returncode != 1:
+                        log.warning(f"Grep returned code {process.returncode}: {process.stderr}")
+                        
+            except subprocess.TimeoutExpired:
+                error_msg = "Timeout ao procurar logs de autenticação"
+                log.warning(error_msg)
+                write_log(error_msg)
+            except subprocess.SubprocessError as e:
+                error_msg = f"Erro ao executar grep: {e}"
+                log.error(error_msg)
+                write_log(error_msg)
         else:
-            write_log("Arquivo de log de autenticação não encontrado. Verifique /var/log/auth.log ou /var/log/secure.")
+            msg = "Arquivo de log de autenticação não encontrado. Verifique /var/log/auth.log ou /var/log/secure."
+            log.warning(msg)
+            write_log(msg)
 
         # Coleta de aplicações ativas
         write_log("--- Aplicações e Processos Ativos ---")
@@ -107,10 +172,14 @@ def coletar_logs_linux():
         else:
             write_log("Nenhuma aplicação relevante encontrada.")
 
-    except subprocess.CalledProcessError as e:
-        write_log(f"Erro ao executar comando de shell no Linux: {e}")
+    except OSError as e:
+        error_msg = f"Erro de sistema operacional: {e}"
+        log.error(error_msg)
+        write_log(error_msg)
     except Exception as e:
-        write_log(f"Erro inesperado durante a coleta de logs do Linux: {e}")
+        error_msg = f"Erro inesperado durante a coleta de logs do Linux: {e}"
+        log.error(error_msg)
+        write_log(error_msg)
     finally:
         write_log("--- Coleta de logs no Linux finalizada ---\n")
 
@@ -122,7 +191,9 @@ def main():
     elif so == "Linux":
         coletar_logs_linux()
     else:
-        write_log(f"Sistema operacional '{so}' não é suportado por este script.")
+        msg = f"Sistema operacional '{so}' não é suportado por este script."
+        log.warning(msg)
+        write_log(msg)
 
 if __name__ == "__main__":
     main()
