@@ -3,7 +3,7 @@ __pycache__
 .vscode
 .idea
 audios
-memoria.db
+*.db
 uploads
 relatorios
 *.log
@@ -11,3 +11,5 @@ venv
 .pytest_cache
 data
 docs/docs_for_guide
+*.sqlite
+node_modules
