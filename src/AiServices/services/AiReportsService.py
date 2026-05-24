@@ -16,7 +16,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib import colors
 from src.core.models import EventModel
-from src.backend.utils.ConnectionWithLlamaApiGroqUtils import llama_api_call
+from src.core.utils.llama_api_utils import llama_api_call
 from src.backend.controllers.DocumentAnalysisController import pdf_local_analysis
 from src.core.config.settings import Settings
 from src.agents.orchestrator.C2M_Orchestrator import C2MOrchestrator
@@ -37,12 +37,6 @@ REPORTS_PATH.mkdir(parents=True, exist_ok=True)
 
 async def AiGenerateReportC2M(evento: EventModel) -> Dict:
     """
-    NOVO: Processa evento conforme modelo C2M com 4 estágios:
-    1. Extração (3 supervisores)
-    2. Decision Tree
-    3. Monte Carlo (50.000 simulações)
-    4. Relatório estruturado
-    
     Args:
         evento: EventModel com type, origin, details
     
@@ -63,9 +57,6 @@ async def AiGenerateReportC2M(evento: EventModel) -> Dict:
 
 async def AiGeneretadReportsWithLlama(evento: EventModel, resposta: str = None, plano: list = None, type_event: str = None) -> str:
     """
-    COMPATÍVEL COM LEGADO
-    Mantém assinatura original mas executa C2M internamente
-    
     Parâmetros resposta, plano, type_event são ignorados
     Evento é o único parâmetro usado
     """
@@ -82,8 +73,8 @@ async def AiGeneretadReportsWithLlama(evento: EventModel, resposta: str = None, 
         return result.get("analysis_summary", "Relatório gerado")
     
     except Exception as e:
-        log.error(f"Erro ao gerar relatório C2M: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar relatório: {str(e)}")
+        log.error(f"Error generating C2M report: {e}")
+        raise HTTPException(status_code=500, detail=f"Error generating report: {str(e)}")
 
 
 def get_color_by_prioridade(prioridade: str) -> colors.Color:
@@ -132,13 +123,13 @@ def AiSaveReports(relatorio_conteudo: str, timestamp: str, prioridade: str) -> s
 
     story = []
 
-    story.append(Paragraph("<b>Sistema Queto - Relatório de Probabilidade de Crise</b>", styles["Title"]))
+    story.append(Paragraph("<b>System Queto - Crisis Probability Report</b>", styles["Title"]))
     story.append(Spacer(1, 12))
 
-    story.append(Paragraph(f"<b>Data e Hora:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", styles["Normal"]))
+    story.append(Paragraph(f"<b>Date and Time:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", styles["Normal"]))
     story.append(Spacer(1, 6))
 
-    story.append(Paragraph(f"<b>Tipo:</b> {prioridade}", estilo_prioridade))
+    story.append(Paragraph(f"<b>Type:</b> {prioridade}", estilo_prioridade))
     story.append(Spacer(1, 12))
 
     for linha in relatorio_conteudo.strip().split("\n"):
@@ -162,13 +153,13 @@ def AiSaveReports(relatorio_conteudo: str, timestamp: str, prioridade: str) -> s
 
     if os.path.exists(caminho_img):
         story.append(Spacer(1, 12))
-        story.append(Paragraph("<b>Código de Cores de Alerta Baseado na ISO 22324:</b>", styles["Normal"]))
+        story.append(Paragraph("<b>Alert Color Code Based on ISO 22324:</b>", styles["Normal"]))
         story.append(Spacer(1, 6))
         story.append(RLImage(caminho_img, width=16*cm, height=2*cm))
     else:
-        print(f"Aviso: Imagem da matriz de alerta não encontrada em {caminho_img}")
+        print(f"Warning: Alert matrix image not found at {caminho_img}")
         story.append(Spacer(1, 12))
-        story.append(Paragraph("<i>(Imagem do código de cores não disponível)</i>", styles["Italic"]))
+        story.append(Paragraph("<i>(Alert color code image unavailable)</i>", styles["Italic"]))
 
 
     try:
@@ -179,6 +170,6 @@ def AiSaveReports(relatorio_conteudo: str, timestamp: str, prioridade: str) -> s
 
     except Exception as e:
 
-        print(f"Erro ao construir o PDF: {e}")
+        print(f"Error building the PDF: {e}")
 
-        return f"Erro ao salvar o relatório em PDF: {e}"
+        return f"Error saving the report as PDF: {e}"

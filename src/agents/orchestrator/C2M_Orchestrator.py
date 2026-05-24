@@ -14,7 +14,7 @@ from typing import Dict, Optional
 
 from src.core.models import EventModel
 from src.core.config.settings import Settings
-from src.backend.utils.ConnectionWithLlamaApiGroqUtils import llama_api_call
+from src.core.utils.llama_api_utils import llama_api_call
 from src.agents.orchestrator.C2M_Models import (
     SentimentAnalysisC2M,
     OrganizationalContextC2M,

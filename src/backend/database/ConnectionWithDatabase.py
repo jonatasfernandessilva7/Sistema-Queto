@@ -4,5 +4,6 @@ import os
 def connect_db():
 
     conn = sqlite3.connect(os.getenv('DATABASE_NAME'))
+    print(f"Connected to database {os.getenv('DATABASE_NAME')} successfully.")
     conn.row_factory = sqlite3.Row
     return conn
