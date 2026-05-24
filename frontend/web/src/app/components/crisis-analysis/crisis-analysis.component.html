@@ -1,0 +1,109 @@
+<div class="crisis-analysis-container">
+  <h1>C2M - Crisis Analysis & Management</h1>
+
+  <div class="analysis-form">
+    <form [formGroup]="analysisForm" (ngSubmit)="analyzeEvent()">
+      <div class="form-group">
+        <label for="event_type">Crisis Type:</label>
+        <select id="event_type" formControlName="event_type" class="form-control">
+          <option value="">Select a type...</option>
+          <option *ngFor="let level of crisisLevels" [value]="level.value">
+            {{ level.label }}
+          </option>
+        </select>
+        <div *ngIf="analysisForm.get('event_type')?.invalid && analysisForm.get('event_type')?.touched" class="error-text">
+          Event type is required
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="transcript">Incident Transcript/Description:</label>
+        <textarea
+          id="transcript"
+          formControlName="transcript"
+          class="form-control"
+          rows="6"
+          placeholder="Describe the incident in detail..."
+        ></textarea>
+        <div *ngIf="analysisForm.get('transcript')?.invalid && analysisForm.get('transcript')?.touched" class="error-text">
+          Description must be at least 50 characters
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="governance_level">Organizational Maturity (1-5):</label>
+        <input
+          id="governance_level"
+          type="range"
+          formControlName="governance_level"
+          min="1"
+          max="5"
+          class="form-control"
+        />
+        <span class="range-value">{{ analysisForm.get('governance_level')?.value }}/5</span>
+      </div>
+
+      <div class="button-group">
+        <button
+          type="submit"
+          [disabled]="analysisForm.invalid || loading"
+          class="btn btn-primary"
+        >
+          <span *ngIf="!loading">Analyze Event</span>
+          <span *ngIf="loading">Analyzing...</span>
+        </button>
+        <button type="button" (click)="reset()" class="btn btn-secondary">
+          Reset
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div *ngIf="error" class="alert alert-danger">
+    {{ error }}
+  </div>
+
+  <div *ngIf="result" class="analysis-result">
+    <h2>Analysis Result</h2>
+
+    <div class="crisis-level" [style.border-left]="'5px solid ' + getColorStyle()">
+      <div class="level-badge" [style.background-color]="getColorStyle()">
+        {{ result.color }}
+      </div>
+      <div class="level-details">
+        <p><strong>Level:</strong> {{ result.level }}</p>
+        <p><strong>Probability:</strong> {{ getProbabilityPercentage() }}%</p>
+        <p><strong>Conformity Factor (C):</strong> {{ (result.conformity_factor * 100).toFixed(1) }}%</p>
+      </div>
+    </div>
+
+    <div class="reasoning">
+      <h3>Analysis Reasoning</h3>
+      <p>{{ result.reasoning }}</p>
+    </div>
+
+    <div *ngIf="result.matched_standards && result.matched_standards.length > 0" class="iso-standards">
+      <h3>Matched ISO Standards</h3>
+      <ul>
+        <li *ngFor="let standard of result.matched_standards">
+          <strong>{{ standard.standard }}</strong> - {{ standard.title }}
+          (Alignment: {{ (standard.alignment * 100).toFixed(0) }}%)
+        </li>
+      </ul>
+    </div>
+
+    <div class="recommendations">
+      <h3>Recommended Actions</h3>
+      <ul>
+        <li *ngIf="result.color === 'GREEN'">Continue monitoring - Situation under control</li>
+        <li *ngIf="result.color === 'YELLOW'">Increase monitoring frequency</li>
+        <li *ngIf="result.color === 'YELLOW'">Brief executive team</li>
+        <li *ngIf="result.color === 'ORANGE'">Activate crisis team</li>
+        <li *ngIf="result.color === 'ORANGE'">Increase response readiness</li>
+        <li *ngIf="result.color === 'RED'">ACTIVATE CRISIS PROTOCOL IMMEDIATELY</li>
+        <li *ngIf="result.color === 'RED'">Notify executive leadership</li>
+        <li *ngIf="result.color === 'RED'">Contact PR and Legal teams</li>
+      </ul>
+    </div>
+  </div>
+</div>
