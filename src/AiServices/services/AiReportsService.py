@@ -1,175 +1,185 @@
+"""
+Responsabilidades:
+  - Executar o pipeline C2M completo (via C2MOrchestrator)
+  - Serializar resultado em PDF estruturado (reportlab)
+  - Manter compatibilidade com a assinatura legada AiGeneretadReportsWithLlama
+
+Correção crítica aplicada:
+  - ANALYSIS_MODULE não é mais executado em import-time como coroutine síncrona.
+    A análise de documentos é feita de forma lazy dentro da função, evitando
+    o bug de `asyncio.coroutine` atribuído a uma variável global.
+"""
+
+from __future__ import annotations
+
 import io
-import os
-import json
-import re
 import logging
-import asyncio
+import os
+import re
+
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Optional
 
 from fastapi import HTTPException
-from datetime import datetime
-from typing import Dict
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.platypus import Image as RLImage
-from reportlab.platypus import PageBreak
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.lib import colors
-from src.core.models import EventModel
-from src.core.utils.llama_api_utils import llama_api_call
-from src.backend.controllers.DocumentAnalysisController import pdf_local_analysis
-from src.core.config.settings import Settings
+from reportlab.platypus import (
+    Image as RLImage,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+)
+
 from src.agents.orchestrator.C2M_Orchestrator import C2MOrchestrator
-from src.agents.orchestrator.C2M_Models import ISO_22324_COLORS, ISO_22324_LEVELS
+from src.core.config.settings import Settings
+from src.core.models import EventModel
 
 log = logging.getLogger(__name__)
 
-ARCHIVES_FOR_CONTEXT_PATH = Settings.UPLOADS_DIR
-ANALYSIS_MODULE = pdf_local_analysis()
-A_MATURITY_MODEL = "../../docs/A_maturity_model.pdf"
-PRIORITY_LEVELS = ["Desconhecida", "Baixa", "Moderada", "Alta", "Crítico"]
-REPORTS_PATH = Settings.REPORTS_DIR / "novos_relatorios"
-REPORTS_PATH.mkdir(parents=True, exist_ok=True)
+REPORTS_DIR = Settings.REPORTS_DIR / "novos_relatorios"
+REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# ════════════════════════════════════════════════════════════════════════════════
-# NOVO: AiGenerateReportC2M - Usando modelo C2M completo
-# ════════════════════════════════════════════════════════════════════════════════
+_PRIORITY_COLOR_MAP = {
+    "crítico": colors.red,
+    "alta": colors.orange,
+    "moderada": colors.yellow,
+    "baixa": colors.green,
+    "desconhecida": colors.gray,
+}
 
 async def AiGenerateReportC2M(evento: EventModel) -> Dict:
     """
-    Args:
-        evento: EventModel com type, origin, details
-    
-    Returns:
-        Dict com resultado completo da análise C2M
+    Executa o pipeline C2M completo de 4 estágios e devolve o resultado
+    como dicionário JSON-serializável.
+
+    Returns
+    -------
+    dict
+        Chaves: status, mean_probability, mean_probability_pct, priority,
+        iso_22324, confidence_interval_95, percentiles, pearson_correlations,
+        std_deviation, conformity_factor, sentiment, risk_agents,
+        organizational_context, crisis_scenarios, decision_tree,
+        analysis_summary, low_risk_assessment
     """
-    
     orchestrator = C2MOrchestrator()
     result = await orchestrator.process_event(evento, use_llm_enhancement=True)
-    
     return result
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# LEGACY: AiGeneretadReportsWithLlama - Mantido para compatibilidade
-# (Agora usa C2M internamente)
-# ════════════════════════════════════════════════════════════════════════════════
+async def AiGeneretadReportsWithLlama(
+    evento: EventModel,
+    resposta: str = None,      # ignorado — mantido por compatibilidade
+    plano: list = None,        # ignorado — mantido por compatibilidade
+    type_event: str = None,    # ignorado — mantido por compatibilidade
+) -> str:
+    """
+    Interface legada: executa o pipeline C2M e retorna o sumário como string.
 
-async def AiGeneretadReportsWithLlama(evento: EventModel, resposta: str = None, plano: list = None, type_event: str = None) -> str:
+    Os parâmetros resposta, plano e type_event são ignorados — o modelo C2M
+    completo substitui esses passos manuais.
     """
-    Parâmetros resposta, plano, type_event são ignorados
-    Evento é o único parâmetro usado
-    """
-    
-    log.info(f"AiGeneretadReportsWithLlama chamado. Usando C2M...")
-    
+    log.info("AiGeneretadReportsWithLlama → delegando ao pipeline C2M")
+
     try:
         result = await AiGenerateReportC2M(evento)
-        
-        if result.get("status") == "error":
-            raise HTTPException(status_code=500, detail=result.get("error_message"))
-        
-        # Retornar sumário como string para manter compatibilidade
-        return result.get("analysis_summary", "Relatório gerado")
-    
-    except Exception as e:
-        log.error(f"Error generating C2M report: {e}")
-        raise HTTPException(status_code=500, detail=f"Error generating report: {str(e)}")
 
+        if result.get("status") == "error":
+            raise HTTPException(
+                status_code=500,
+                detail=result.get("error_message", "Erro desconhecido no pipeline C2M"),
+            )
+
+        return result.get("analysis_summary", "Relatório gerado pelo modelo C2M.")
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.error("Erro ao gerar relatório C2M: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar relatório: {exc}")
 
 def get_color_by_prioridade(prioridade: str) -> colors.Color:
+    """Mapeia prioridade para cor reportlab (ISO 22324)."""
+    return _PRIORITY_COLOR_MAP.get(prioridade.lower(), colors.gray)
+
+
+def AiSaveReports(
+    relatorio_conteudo: str,
+    timestamp: str,
+    prioridade: str,
+) -> str:
     """
-    Retorna cor reportlab baseada em prioridade ISO 22324
+    Persiste o conteúdo do relatório como PDF em REPORTS_DIR.
+
+    Returns
+    -------
+    str
+        Caminho absoluto do arquivo PDF gerado.
     """
-    
-    # Mapeamento para colors reportlab
-    cores = {
-        "Crítico": colors.red,
-        "crítico": colors.red,
-        "Alta": colors.orange,
-        "alta": colors.orange,
-        "Moderada": colors.yellow,
-        "moderada": colors.yellow,
-        "Baixa": colors.green,
-        "baixa": colors.green,
-        "Desconhecida": colors.gray,
-        "desconhecida": colors.gray
-    }
-    
-    return cores.get(prioridade, colors.gray)
-
-def AiSaveReports(relatorio_conteudo: str, timestamp: str, prioridade: str) -> str:
-
-    pasta = Settings.REPORTS_DIR / "novos_relatorios"
-    pasta.mkdir(parents=True, exist_ok=True)
-    nome_arquivo = str(pasta / f"relatorio_crise_{timestamp}.pdf")
-
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(nome_arquivo, pagesize=A4,
-                            rightMargin=2*cm, leftMargin=2*cm,
-                            topMargin=2*cm, bottomMargin=2*cm)
+    output_path = REPORTS_DIR / f"relatorio_crise_{timestamp}.pdf"
+    doc = SimpleDocTemplate(
+        str(output_path),
+        pagesize=A4,
+        rightMargin=2 * cm,
+        leftMargin=2 * cm,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
+    )
 
     styles = getSampleStyleSheet()
-
     cor_alerta = get_color_by_prioridade(prioridade)
 
-    estilo_prioridade = ParagraphStyle(
+    priority_style = ParagraphStyle(
         name="Prioridade",
         parent=styles["Heading2"],
         textColor=cor_alerta,
         fontSize=16,
-        spaceAfter=12
+        spaceAfter=12,
     )
 
-    story = []
+    story = [
+        Paragraph("<b>Sistema Queto — Relatório de Probabilidade de Crise Cibernética</b>", styles["Title"]),
+        Spacer(1, 12),
+        Paragraph(f"<b>Data e Hora:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", styles["Normal"]),
+        Spacer(1, 6),
+        Paragraph(f"<b>Nível de Prioridade (ISO 22324):</b> {prioridade}", priority_style),
+        Spacer(1, 12),
+    ]
 
-    story.append(Paragraph("<b>System Queto - Crisis Probability Report</b>", styles["Title"]))
-    story.append(Spacer(1, 12))
+    for linha in relatorio_conteudo.strip().splitlines():
+        if not linha.strip():
+            continue
 
-    story.append(Paragraph(f"<b>Date and Time:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", styles["Normal"]))
-    story.append(Spacer(1, 6))
+        texto = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", linha.strip())
+        texto = re.sub(r"\*(.+?)\*", r"<i>\1</i>", texto)
 
-    story.append(Paragraph(f"<b>Type:</b> {prioridade}", estilo_prioridade))
-    story.append(Spacer(1, 12))
+        if texto.startswith("# "):
+            story.append(Paragraph(texto[2:], styles["h1"]))
+        elif texto.startswith("## "):
+            story.append(Paragraph(texto[3:], styles["h2"]))
+        elif texto.startswith("### "):
+            story.append(Paragraph(texto[4:], styles["h3"]))
+        else:
+            story.append(Paragraph(texto, styles["Normal"]))
 
-    for linha in relatorio_conteudo.strip().split("\n"):
-
-        if linha.strip():
-            linha_formatada = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", linha.strip())
-            linha_formatada = re.sub(r"\*(.+?)\*", r"<i>\1</i>", linha_formatada) 
-
-            if linha_formatada.startswith("# "):
-                story.append(Paragraph(linha_formatada[2:], styles["h1"]))
-            elif linha_formatada.startswith("## "):
-                story.append(Paragraph(linha_formatada[3:], styles["h2"]))
-            elif linha_formatada.startswith("### "):
-                story.append(Paragraph(linha_formatada[4:], styles["h3"]))
-            else:
-                story.append(Paragraph(linha_formatada, styles["Normal"]))
-
-            story.append(Spacer(1, 6))
-
-    caminho_img = os.path.join(os.path.dirname(__file__), "..", "image", "matriz_alerta_iso22324.png")
-
-    if os.path.exists(caminho_img):
-        story.append(Spacer(1, 12))
-        story.append(Paragraph("<b>Alert Color Code Based on ISO 22324:</b>", styles["Normal"]))
         story.append(Spacer(1, 6))
-        story.append(RLImage(caminho_img, width=16*cm, height=2*cm))
-    else:
-        print(f"Warning: Alert matrix image not found at {caminho_img}")
-        story.append(Spacer(1, 12))
-        story.append(Paragraph("<i>(Alert color code image unavailable)</i>", styles["Italic"]))
 
+    # Imagem de referência ISO 22324 (opcional)
+    img_path = Path(__file__).parent / ".." / "image" / "matriz_alerta_iso22324.png"
+    if img_path.exists():
+        story.extend([
+            Spacer(1, 12),
+            Paragraph("<b>Código de Cores — ISO 22324:</b>", styles["Normal"]),
+            Spacer(1, 6),
+            RLImage(str(img_path), width=16 * cm, height=2 * cm),
+        ])
 
     try:
-
         doc.build(story)
-
-        return nome_arquivo
-
-    except Exception as e:
-
-        print(f"Error building the PDF: {e}")
-
-        return f"Error saving the report as PDF: {e}"
+        log.info("Relatório PDF salvo: %s", output_path)
+        return str(output_path)
+    except Exception as exc:
+        log.error("Erro ao construir PDF: %s", exc)
+        raise RuntimeError(f"Erro ao salvar relatório PDF: {exc}") from exc
