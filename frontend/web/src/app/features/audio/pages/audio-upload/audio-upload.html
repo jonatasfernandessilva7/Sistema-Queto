@@ -1,0 +1,214 @@
+<div class="page-header">
+  <h1>Análise de Áudio</h1>
+  <p>Upload de reuniões para detecção probabilística de crises cibernéticas — pipeline C2M completo</p>
+</div>
+
+<!-- Upload + recorder -->
+<div class="audio-inputs">
+
+  <!-- Drop zone -->
+  <div class="card">
+    <div class="card-header"><h3>Upload de Arquivo WAV</h3></div>
+    <div class="card-body">
+      <div class="drop-zone" [class.drag-over]="dragOver" [class.has-file]="selectedFile"
+           (dragover)="$event.preventDefault(); dragOver=true"
+           (dragleave)="dragOver=false" (drop)="onDrop($event)"
+           (click)="fileInput.click()">
+        <input #fileInput type="file" accept=".wav" hidden (change)="onFileSelected($event)">
+        @if (!selectedFile) {
+          <div class="dz-inner">
+            <span class="dz-icon">🎵</span>
+            <span class="dz-text">Arraste um arquivo <strong>.WAV</strong> ou clique</span>
+            <span class="dz-hint text-xs text-muted">Máx. 25 MB · reuniões corporativas</span>
+          </div>
+        } @else {
+          <div class="dz-file">
+            <span class="file-icon">📁</span>
+            <span class="file-name">{{ selectedFile.name }}</span>
+            <span class="text-muted text-sm">{{ (selectedFile.size/1024/1024).toFixed(2) }} MB</span>
+          </div>
+        }
+      </div>
+
+      <label class="consent-check">
+        <input type="checkbox" [(ngModel)]="consentAccepted">
+        <span>Concordo com o uso da voz conforme <strong>LGPD (Art. 7)</strong> — dados processados exclusivamente para análise de crises e descartados após.</span>
+      </label>
+
+      <button class="btn btn-primary upload-btn"
+              (click)="upload()"
+              [disabled]="!selectedFile || !consentAccepted || state === 'uploading'">
+        @if (state === 'uploading') { <span class="spinner"></span> Processando… }
+        @else { 🚀 Analisar Áudio }
+      </button>
+    </div>
+  </div>
+
+  <!-- Gravação ao vivo -->
+  <div class="card">
+    <div class="card-header"><h3>Gravação ao Vivo</h3></div>
+    <div class="card-body">
+      <p class="text-sm text-secondary" style="margin-bottom:16px; line-height:1.6">
+        Grave pelo microfone do servidor. Análise em tempo real a cada 5 minutos (throttling).
+      </p>
+      @if (!recordingActive) {
+        <button class="btn btn-primary record-btn" (click)="startRecord()">🎙 Iniciar Gravação</button>
+      } @else {
+        <div class="recording-indicator"><span class="rec-dot"></span> Gravando…</div>
+        <button class="btn btn-danger" style="margin-top:16px;width:100%" (click)="stopRecord()">⏹ Parar e Analisar</button>
+      }
+      @if (state === 'processing') {
+        <div class="flex items-center gap-8 mt-16"><div class="spinner"></div>
+          <span class="text-sm text-secondary">Processando gravação…</span></div>
+      }
+    </div>
+  </div>
+</div>
+
+<!-- Erro -->
+@if (state === 'error') {
+  <div class="card mt-24 error-card">
+    <div class="card-body">
+      <p style="color:var(--danger);font-weight:600">Erro no processamento</p>
+      <p class="text-sm text-muted mt-8">{{ errorMessage }}</p>
+    </div>
+  </div>
+}
+
+<!-- ── RESULTADO COMPLETO ── -->
+@if (result && state === 'done') {
+  <div class="result-section mt-24">
+
+    <!-- Hero: gauge + ISO + ação -->
+    <div class="card result-hero-card">
+      <div class="card-body result-hero">
+        <div class="hero-left">
+          <app-gauge-chart [value]="probPct" [size]="170"></app-gauge-chart>
+          <div class="gauge-label">Probabilidade de Crise</div>
+        </div>
+        <div class="hero-center">
+          <app-crisis-badge [level]="isoLevel"></app-crisis-badge>
+          <div class="hero-action" [style.color]="isoColor">{{ result.iso_22324?.action }}</div>
+          <div class="hero-msg text-sm text-secondary">{{ result.message }}</div>
+          <div class="hero-chips">
+            @if (result.emotion) {
+              <div class="chip">🧠 Emoção: <strong>{{ result.emotion }}</strong></div>
+            }
+            @if (result.num_voices) {
+              <div class="chip">👥 Participantes: <strong>{{ result.num_voices }}</strong></div>
+            }
+            @if (result.sentiment) {
+              <div class="chip">
+                Sentimento: <strong>{{ result.sentiment.interpretation }}</strong>
+                <span class="font-mono text-muted"> ({{ result.sentiment.polarity | number:'1.3-3' }})</span>
+              </div>
+            }
+          </div>
+        </div>
+        <div class="hero-right">
+          @if (result.std_deviation != null) {
+            <div class="hstat">
+              <span class="hstat-label">σ Desvio Padrão</span>
+              <span class="hstat-val font-mono">{{ result.std_deviation | number:'1.4-4' }}</span>
+            </div>
+          }
+          @if (result.confidence_interval_95) {
+            <div class="hstat">
+              <span class="hstat-label">IC 95%</span>
+              <span class="hstat-val font-mono">
+                [{{ result.confidence_interval_95.lower | number:'1.4-4' }},
+                {{ result.confidence_interval_95.upper | number:'1.4-4' }}]
+              </span>
+            </div>
+          }
+          @if (result.conformity_factor != null) {
+            <div class="hstat">
+              <span class="hstat-label">Fator de Conformidade C</span>
+              <span class="hstat-val font-mono">{{ result.conformity_factor | number:'1.4-4' }}</span>
+            </div>
+          }
+          <button class="btn btn-ghost btn-sm mt-16" (click)="reset()">✕ Nova análise</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="charts-grid mt-20">
+
+      <!-- Pearson -->
+      @if (hasPearson) {
+        <div class="card">
+          <div class="card-header"><h3>Drivers de Risco — Pearson</h3></div>
+          <div class="card-body">
+            <p class="chart-desc">Correlação de cada variável com P_crisis nos 50.000 cenários Monte Carlo.</p>
+            <app-bar-chart [entries]="pearsonEntries" [showNegative]="true" [maxValue]="1"></app-bar-chart>
+            <div class="legend-row">
+              <span class="leg-item"><span class="leg-dot" style="background:#E84545"></span>Aumenta risco</span>
+              <span class="leg-item"><span class="leg-dot" style="background:#27AE60"></span>Reduz risco</span>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Percentis -->
+      @if (hasPercentiles) {
+        <div class="card">
+          <div class="card-header"><h3>Distribuição — Percentis</h3></div>
+          <div class="card-body">
+            <p class="chart-desc">Dispersão dos 50.000 cenários. Percentis altos indicam risco persistente mesmo nos cenários conservadores.</p>
+            <app-bar-chart [entries]="percentileEntries" unit="%" [maxValue]="100"></app-bar-chart>
+          </div>
+        </div>
+      }
+
+      <!-- Radar organizacional -->
+      <div class="card">
+        <div class="card-header"><h3>Contexto Organizacional — ISO 22325</h3></div>
+        <div class="card-body radar-body">
+          <app-radar-chart [entries]="radarEntries" [size]="190"></app-radar-chart>
+          <div class="radar-legend">
+            @for (e of radarEntries; track e.label) {
+              <div class="rl-row">
+                <span class="rl-dot" [style.background]="e.value ? '#27AE60' : '#E84545'"></span>
+                <span class="rl-label">{{ e.label }}</span>
+                <span class="rl-val font-mono">{{ e.value ? '✓' : '✗' }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Fator de conformidade -->
+      @if (hasConformity) {
+        <div class="card">
+          <div class="card-header"><h3>Fator de Conformidade (C)</h3></div>
+          <div class="card-body">
+            <p class="chart-desc">Divergência semântica entre a reunião e os documentos de governança indexados.</p>
+            <div class="conformity-gauge">
+              <div class="cg-track">
+                <div class="cg-fill" [style.width.%]="conformityPct" [style.background]="probColor"></div>
+                <div class="cg-marker" [style.left.%]="conformityPct"></div>
+              </div>
+              <div class="cg-labels">
+                <span class="text-xs" style="color:#27AE60">C=0 Conformante</span>
+                <span class="cg-value font-mono" [style.color]="probColor">{{ result.conformity_factor | number:'1.4-4' }}</span>
+                <span class="text-xs" style="color:#E84545">C=1 Divergente</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Sumário executivo -->
+    @if (result.analysis_summary) {
+      <div class="card mt-20">
+        <div class="card-header"><h3>Sumário Executivo C2M</h3></div>
+        <div class="card-body">
+          <pre class="summary-pre">{{ result.analysis_summary }}</pre>
+        </div>
+      </div>
+    }
+
+  </div>
+}

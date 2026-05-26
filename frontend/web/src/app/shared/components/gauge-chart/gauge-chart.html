@@ -1,0 +1,17 @@
+<div class="gauge-wrap" [style.width.px]="size">
+  <svg [attr.width]="size" [attr.viewBox]="'0 0 ' + size + ' ' + (size/2 + 20)">
+    <!-- track -->
+    <path [attr.d]="'M ' + (cx - r) + ' ' + cy + ' A ' + r + ' ' + r + ' 0 0 1 ' + (cx + r) + ' ' + cy"
+          fill="none" stroke="var(--border)" stroke-width="10" stroke-linecap="round"/>
+    <!-- value arc -->
+    <path [attr.d]="arc" fill="none" [attr.stroke]="color"
+          stroke-width="10" stroke-linecap="round"
+          style="transition: d .5s ease, stroke .4s"/>
+    <!-- needle -->
+    <line [attr.x1]="cx" [attr.y1]="cy" [attr.x2]="cx" [attr.y2]="cy"
+          stroke="var(--text-p)" stroke-width="2" stroke-linecap="round"
+          style="transition: all .5s ease"/>
+    <circle [attr.cx]="cx" [attr.cy]="cy" r="5" fill="var(--text-p)"/>
+  </svg>
+  <div class="gauge-value" [style.color]="color">{{ displayValue }}</div>
+</div>

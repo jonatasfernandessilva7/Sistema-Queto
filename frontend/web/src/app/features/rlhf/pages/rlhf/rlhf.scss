@@ -1,0 +1,60 @@
+.rlhf-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+.weights-list { display: flex; flex-direction: column; gap: 14px; }
+.weight-row {
+  display: grid; grid-template-columns: 1fr 120px 72px; align-items: center; gap: 12px;
+}
+.weight-meta { display: flex; flex-direction: column; gap: 2px; }
+.weight-label { font-size: 13px; font-weight: 500; }
+.weight-bar-wrap {
+  height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+}
+.weight-bar {
+  height: 100%; background: var(--accent); border-radius: 3px;
+  max-width: 100%; transition: width .4s ease;
+}
+.weight-val { font-size: 12px; text-align: right; color: var(--text-s); }
+
+.toggle-row { display: flex; align-items: center; gap: 10px; }
+.toggle-label {
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  background: var(--snow-dim); font-size: 13px; font-weight: 500; cursor: pointer;
+}
+
+.prob-options { display: flex; gap: 10px; flex-wrap: wrap; }
+.prob-opt {
+  flex: 1; min-width: 100px; padding: 10px 14px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border); text-align: center; cursor: pointer;
+  font-size: 13px; font-weight: 500; transition: all .18s;
+  &.selected { border-color: var(--accent); background: rgba(43,123,232,.1); color: var(--accent); }
+  &:hover:not(.selected) { border-color: var(--text-m); }
+}
+
+.stars { display: flex; gap: 4px; }
+.star {
+  font-size: 24px; background: none; border: none; color: var(--border);
+  transition: color .15s; padding: 2px;
+  &.active { color: var(--warning); }
+  &:hover { color: var(--warning); }
+}
+
+.rlhf-info-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  .info-cell {
+    background: var(--snow-dim); border-radius: var(--radius-sm); padding: 14px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .info-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text-m); }
+  .info-val { font-size: 14px; font-weight: 600; color: var(--accent); }
+}
+
+.delta { font-size: 12px; font-weight: 700;
+  &.up { color: var(--danger); } &.down { color: var(--safe); }
+}
+
+textarea.form-control { resize: vertical; }
+
+@media (max-width: 900px) {
+  .rlhf-layout { grid-template-columns: 1fr; }
+  .rlhf-info-grid { grid-template-columns: repeat(2,1fr); }
+}

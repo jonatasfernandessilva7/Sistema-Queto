@@ -1,0 +1,10 @@
+.bc-wrap { width: 100%; }
+.bc-title { font-size: 12px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--text-m); margin-bottom: 12px; }
+.bc-rows { display: flex; flex-direction: column; gap: 10px; }
+.bc-row { display: grid; grid-template-columns: 110px 1fr 72px; align-items: center; gap: 10px; }
+.bc-label { font-size: 13px; color: var(--text-s); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.bc-bar { height: 100%; border-radius: 4px; transition: width .5s ease; }
+.bc-val { font-size: 12px; text-align: right; }
+.bc-empty { padding: 8px 0; }

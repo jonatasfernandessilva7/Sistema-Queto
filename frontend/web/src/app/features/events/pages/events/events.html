@@ -1,0 +1,67 @@
+<div class="page-header">
+  <h1>Histórico de Eventos</h1>
+  <p>Eventos registrados no banco de dados — fonte da variável H (Poisson) do Monte Carlo</p>
+</div>
+
+<div class="events-header">
+  <button class="btn btn-primary" (click)="showForm = !showForm">
+    {{ showForm ? '✕ Cancelar' : '+ Novo Evento de Texto' }}
+  </button>
+  <button class="btn btn-ghost" (click)="load()">🔄 Atualizar</button>
+</div>
+
+@if (showForm) {
+  <div class="card mt-16" [formGroup]="form">
+    <div class="card-header"><h3>Registrar Evento de Texto</h3></div>
+    <div class="card-body">
+      <div class="grid grid-2" style="gap:16px">
+        <div class="form-group">
+          <label class="form-label">Tipo do Evento</label>
+          <select class="form-control" formControlName="type">
+            <option value="ataque_cibernetico">Ataque Cibernético</option>
+            <option value="falha_sistema">Falha de Sistema</option>
+            <option value="vazamento">Vazamento de Dados</option>
+            <option value="ransomware">Ransomware</option>
+            <option value="alerta_generico">Alerta Genérico</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Origem</label>
+          <input class="form-control" formControlName="origin" placeholder="ex: monitoramento, usuário">
+        </div>
+      </div>
+      <div class="form-group mt-16">
+        <label class="form-label">Descrição</label>
+        <textarea class="form-control" formControlName="detail_texto" rows="3" placeholder="Descreva o evento..."></textarea>
+      </div>
+      <button class="btn btn-primary mt-16" (click)="submit()" [disabled]="submitting || form.invalid">
+        @if (submitting) { <span class="spinner"></span> }
+        Enviar para Análise C2M
+      </button>
+    </div>
+  </div>
+}
+
+<div class="card mt-24">
+  <div class="card-header"><h3>Eventos ({{ events.length }})</h3></div>
+  <div class="table-wrap">
+    @if (loading) {
+      <div style="padding:32px;text-align:center"><div class="spinner" style="margin:auto"></div></div>
+    } @else if (!events.length) {
+      <div style="padding:32px;text-align:center;color:var(--text-m)">Nenhum evento registrado.</div>
+    } @else {
+      <table>
+        <thead><tr><th>Tipo</th><th>Origem</th><th>Timestamp</th></tr></thead>
+        <tbody>
+          @for (ev of events; track $index) {
+            <tr>
+              <td><span class="badge">{{ getType(ev) }}</span></td>
+              <td class="text-secondary">{{ getOrigin(ev) }}</td>
+              <td class="font-mono text-muted">{{ getTs(ev) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>

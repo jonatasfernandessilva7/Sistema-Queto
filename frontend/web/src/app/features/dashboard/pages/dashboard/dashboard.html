@@ -1,0 +1,73 @@
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <p>Visão geral do sistema C2M — Cyber Crisis Management</p>
+</div>
+
+<div class="grid grid-4">
+  @for (s of stats; track s.label) {
+    <div class="stat-card">
+      <div class="stat-icon">{{ s.icon }}</div>
+      <div class="stat-label">{{ s.label }}</div>
+      <div class="stat-value">{{ s.value }}</div>
+      <div class="stat-sub">{{ s.sub }}</div>
+    </div>
+  }
+</div>
+
+<div class="grid grid-2 mt-24">
+  <!-- Pipeline C2M -->
+  <div class="card">
+    <div class="card-header"><h3>Pipeline C2M</h3></div>
+    <div class="card-body">
+      <div class="pipeline">
+        @for (step of pipeline; track step.label) {
+          <div class="pipeline-step">
+            <div class="step-num">{{ step.num }}</div>
+            <div class="step-info">
+              <div class="step-label">{{ step.label }}</div>
+              <div class="step-desc text-sm text-muted">{{ step.desc }}</div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent events -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Eventos Recentes</h3>
+      <a routerLink="/events" class="btn btn-ghost btn-sm">Ver todos</a>
+    </div>
+    <div class="card-body">
+      @if (loading) { <div class="spinner"></div> }
+      @else if (!recentEvents.length) {
+        <p class="text-muted text-sm">Nenhum evento registrado.</p>
+      } @else {
+        @for (ev of recentEvents; track $index) {
+          <div class="event-row">
+            <span class="event-type">{{ getEventType(ev) }}</span>
+            <span class="event-ts text-xs text-muted font-mono">{{ getEventTs(ev) }}</span>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>
+
+<!-- ISO 22324 Reference -->
+<div class="card mt-24">
+  <div class="card-header"><h3>Níveis ISO 22324 — Código de Cores</h3></div>
+  <div class="card-body">
+    <div class="iso-grid">
+      @for (lvl of isoLevels; track lvl.level) {
+        <div class="iso-card" [style.--c]="lvl.color" [style.--bg]="lvl.bg">
+          <div class="iso-dot"></div>
+          <div class="iso-level">{{ lvl.level }}</div>
+          <div class="iso-range text-xs">{{ lvl.range }}</div>
+          <div class="iso-action text-sm">{{ lvl.action }}</div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

@@ -1,17 +1,16 @@
-<div class="app-container">
-  <header class="app-header">
-    <div class="header-content">
-      <h1>{{ title }}</h1>
-      <p class="subtitle">Crisis Management System with AI Analysis</p>
+<div class="app-shell">
+  <app-sidebar></app-sidebar>
+  <div class="main-content">
+    <app-topbar></app-topbar>
+    <div class="page-body">
+      <router-outlet></router-outlet>
     </div>
-  </header>
+  </div>
+</div>
 
-  <main class="app-main">
-    <app-crisis-analysis></app-crisis-analysis>
-  </main>
-
-  <footer class="app-footer">
-    <p>&copy; 2026 Sistema-Queto. Crisis Management Platform powered by C2M Algorithm.</p>
-    <p>Based on ISO 22324, 22361, 31000, and 27001 standards</p>
-  </footer>
+<!-- Toast container -->
+<div class="toast-container">
+  @for (t of toast.toasts(); track t.id) {
+    <div class="toast" [class]="t.type">{{ t.message }}</div>
+  }
 </div>

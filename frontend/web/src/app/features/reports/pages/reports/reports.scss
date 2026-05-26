@@ -1,0 +1,103 @@
+/* ── Tabela ── */
+.loading-center { padding: 32px; text-align: center; .spinner { margin: auto; } }
+.empty-state    { padding: 32px; text-align: center; color: var(--text-m); font-size: 14px; }
+.clickable      { cursor: pointer; transition: background .15s; }
+.row-selected td { background: rgba(43,123,232,.06) !important; }
+
+.prob-chip {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 13px; font-weight: 700; font-family: 'IBM Plex Mono', monospace;
+}
+
+/* ── Sparkline card ── */
+.mb-24 { margin-bottom: 24px; }
+.spark-body { display: flex; flex-direction: column; gap: 6px; overflow-x: auto; }
+.spark-labels {
+  display: flex; justify-content: space-between;
+  padding: 0 4px; font-size: 11px; color: var(--text-m);
+}
+
+/* ── Detail hero ── */
+.detail-header-card { border-top: 3px solid var(--accent); }
+.detail-hero {
+  display: grid;
+  grid-template-columns: 180px 1fr auto;
+  gap: 32px; align-items: start;
+}
+.hero-gauge { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.gauge-label { font-size: 12px; color: var(--text-m); text-align: center; }
+.no-data { color: var(--text-m); font-size: 13px; padding: 40px 0; text-align: center; }
+
+.hero-meta { display: flex; flex-direction: column; gap: 12px; }
+.hero-action { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; }
+.hero-stats  { display: flex; flex-direction: column; gap: 8px; }
+.hstat       { display: flex; flex-direction: column; gap: 2px; }
+.hstat-label { font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .4px; color: var(--text-m); }
+.hstat-val   { font-size: 14px; font-weight: 500; }
+
+.hero-ts { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+/* ── Charts grid ── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.chart-desc { font-size: 13px; color: var(--text-s); margin-bottom: 16px; line-height: 1.5; }
+
+.legend-row {
+  display: flex; gap: 16px; margin-top: 14px;
+  .leg-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-s); }
+  .leg-dot  { width: 10px; height: 10px; border-radius: 50%; }
+}
+
+/* ── Radar card ── */
+.radar-body { display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+.radar-legend { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 140px; }
+.rl-row   { display: flex; align-items: center; gap: 8px; }
+.rl-dot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.rl-label { font-size: 13px; color: var(--text-s); flex: 1; }
+.rl-val   { font-size: 12px; font-weight: 600; }
+
+/* ── Conformity gauge ── */
+.conformity-gauge { margin-top: 8px; }
+.cg-track {
+  position: relative; height: 16px; background: var(--border);
+  border-radius: 8px; overflow: hidden; margin-bottom: 10px;
+}
+.cg-fill {
+  height: 100%; border-radius: 8px;
+  transition: width .6s ease, background .4s;
+  max-width: 100%;
+}
+.cg-marker {
+  position: absolute; top: -3px; width: 3px; height: 22px;
+  background: var(--text-p); border-radius: 2px;
+  transform: translateX(-50%); transition: left .6s ease;
+}
+.cg-labels {
+  display: flex; justify-content: space-between; align-items: center;
+  .cg-value { font-size: 16px; font-weight: 700; }
+}
+
+/* ── Report text ── */
+.report-pre {
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.7;
+  white-space: pre-wrap; background: var(--snow-dim);
+  padding: 20px; border-radius: var(--radius-sm);
+  overflow-x: auto; max-height: 520px; overflow-y: auto;
+  color: var(--text-p);
+}
+.binary-notice {
+  padding: 20px; background: var(--snow-dim); border-radius: var(--radius-sm);
+  color: var(--text-s); font-size: 14px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .detail-hero { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .hero-ts { align-items: flex-start; }
+}

@@ -1,0 +1,22 @@
+.topbar {
+  position: fixed; top: 0; left: var(--sidebar-w); right: 0;
+  height: var(--topbar-h); z-index: 99;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+}
+.page-title { font-size: 14px; font-weight: 500; color: var(--text-s); }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--safe);
+  box-shadow: 0 0 0 3px rgba(39,174,96,.2);
+  animation: pulse 2s ease infinite;
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 3px rgba(39,174,96,.2); }
+  50%      { box-shadow: 0 0 0 6px rgba(39,174,96,.08); }
+}
+.theme-btn { font-size: 16px; padding: 6px 10px; }

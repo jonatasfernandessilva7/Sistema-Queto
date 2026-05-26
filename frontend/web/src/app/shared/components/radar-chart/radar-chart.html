@@ -1,0 +1,20 @@
+<svg [attr.width]="size" [attr.height]="size" [attr.viewBox]="'0 0 ' + size + ' ' + size" class="radar-svg">
+  <!-- grid -->
+  @for (g of gridPaths; track $index) {
+    <path [attr.d]="g" fill="none" stroke="var(--border)" stroke-width="1"/>
+  }
+  <!-- axes -->
+  @for (ax of axisLines; track ax.label) {
+    <line [attr.x1]="ax.x1" [attr.y1]="ax.y1" [attr.x2]="ax.x2" [attr.y2]="ax.y2"
+          stroke="var(--border)" stroke-width="1"/>
+    <text [attr.x]="ax.lx" [attr.y]="ax.ly" text-anchor="middle" dominant-baseline="middle"
+          font-size="10" fill="var(--text-m)" font-family="Inter,sans-serif">{{ ax.label }}</text>
+  }
+  <!-- data -->
+  <path [attr.d]="dataPath" fill="rgba(43,123,232,.2)" stroke="var(--accent)" stroke-width="2"/>
+  @for (pt of dataPoints; track $index) {
+    <circle [attr.cx]="pt.x" [attr.cy]="pt.y" r="4" fill="var(--accent)"/>
+    <text [attr.x]="pt.x" [attr.y]="pt.y - 8" text-anchor="middle"
+          font-size="9" fill="var(--accent)" font-family="IBM Plex Mono,monospace">{{ pt.value }}</text>
+  }
+</svg>

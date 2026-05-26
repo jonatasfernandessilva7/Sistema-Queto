@@ -1,0 +1,17 @@
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <span class="brand-icon">Q</span>
+    <span class="brand-text">Queto<span class="brand-tag">C2M</span></span>
+  </div>
+  <nav class="sidebar-nav">
+    @for (item of nav; track item.route) {
+      <a class="nav-item" [routerLink]="item.route" routerLinkActive="active">
+        <span class="nav-icon">{{ item.icon }}</span>
+        <span class="nav-label">{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+  <div class="sidebar-footer">
+    <span class="version-tag mono">v2.0 · ISO 22361</span>
+  </div>
+</aside>

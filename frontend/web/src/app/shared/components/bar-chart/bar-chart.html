@@ -1,0 +1,19 @@
+<div class="bc-wrap">
+  @if (title) { <div class="bc-title">{{ title }}</div> }
+  <div class="bc-rows">
+    @for (e of rendered; track e.label) {
+      <div class="bc-row">
+        <span class="bc-label">{{ e.label }}</span>
+        <div class="bc-track">
+          <div class="bc-bar" [style.width.%]="e.pct" [style.background]="e.barColor"></div>
+        </div>
+        <span class="bc-val font-mono" [style.color]="e.barColor">
+          {{ e.value | number:'1.4-4' }}{{ unit }}
+        </span>
+      </div>
+    }
+    @if (!rendered.length) {
+      <span class="bc-empty text-muted text-sm">Sem dados</span>
+    }
+  </div>
+</div>

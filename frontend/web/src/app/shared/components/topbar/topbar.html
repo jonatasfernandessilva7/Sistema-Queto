@@ -1,0 +1,12 @@
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="page-title">Sistema de Gestão de Crises Cibernéticas</span>
+  </div>
+  <div class="topbar-right">
+    <div class="status-dot" title="Sistema operacional"></div>
+    <span class="status-label text-sm text-secondary">Sistema operacional</span>
+    <button class="btn btn-ghost btn-sm theme-btn" (click)="theme.toggle()" title="Alternar tema">
+      {{ theme.theme() === 'light' ? '🌙' : '☀️' }}
+    </button>
+  </div>
+</header>

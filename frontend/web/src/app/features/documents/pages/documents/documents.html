@@ -1,0 +1,179 @@
+<div class="page-header">
+  <h1>Documentos Corporativos</h1>
+  <p>Base vetorial para cálculo do fator de conformidade C — ISO 31000 · ISO 22361 · LGPD</p>
+</div>
+
+<!-- Toolbar -->
+<div class="docs-toolbar">
+  <label class="btn btn-primary" [class.loading-btn]="uploading">
+    <input type="file" multiple accept=".pdf,.docx,.doc,.txt,.md" hidden (change)="onUpload($event)">
+    @if (uploading) { <span class="spinner"></span> Enviando… }
+    @else { 📤 Upload de Documentos }
+  </label>
+
+  <button class="btn btn-ghost" (click)="runAnalysis()" [disabled]="analyzing || !docs.length">
+    @if (analyzing) { <span class="spinner"></span> Analisando… }
+    @else { 🔍 Analisar Base Semântica }
+  </button>
+
+  <span class="doc-count">{{ docs.length }} documento(s) indexado(s)</span>
+</div>
+
+<!-- Layout principal: lista + painel lateral -->
+<div class="docs-layout mt-24" [class.panel-open]="panelMode !== 'none'">
+
+  <!-- Lista de documentos -->
+  <div class="card docs-list-card">
+    <div class="card-header"><h3>Documentos Indexados</h3></div>
+    <div class="docs-list">
+      @if (loading) {
+        <div class="list-loading"><div class="spinner"></div></div>
+      } @else if (!docs.length) {
+        <div class="list-empty">
+          <div class="empty-icon">📂</div>
+          <p>Nenhum documento indexado.</p>
+          <p class="text-muted text-sm">Faça upload de políticas ISO, planos de continuidade, diretrizes LGPD ou qualquer documento de governança corporativa.</p>
+        </div>
+      } @else {
+        @for (doc of docs; track doc.id) {
+          <div class="doc-row" [class.doc-active]="isActive(doc)">
+            <div class="doc-icon" [style.background]="extColor(doc.filename) + '18'" [style.color]="extColor(doc.filename)">
+              {{ ext(doc.filename) }}
+            </div>
+            <div class="doc-info" (click)="openView(doc)">
+              <span class="doc-name">{{ doc.filename }}</span>
+              <span class="doc-id text-xs font-mono text-muted">#{{ doc.id }}</span>
+            </div>
+            <div class="doc-actions">
+              <button class="action-btn" title="Visualizar" (click)="openView(doc)">👁</button>
+              <button class="action-btn" title="Abrir em nova aba" (click)="openInNewTab(doc)">↗</button>
+              <button class="action-btn" title="Substituir arquivo" (click)="openReplace(doc)">🔄</button>
+              <button class="action-btn action-danger" title="Remover"
+                      [disabled]="deleting === doc.id"
+                      (click)="confirmDelete(doc)">
+                @if (deleting === doc.id) { <span class="spinner" style="width:14px;height:14px"></span> }
+                @else { 🗑 }
+              </button>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  </div>
+
+  <!-- Painel lateral -->
+  @if (panelMode !== 'none') {
+    <div class="side-panel card">
+
+      <!-- ── Visualização ── -->
+      @if (panelMode === 'view' && activeDoc) {
+        <div class="card-header">
+          <div class="panel-title">
+            <span class="doc-icon-sm" [style.color]="extColor(activeDoc.filename)">{{ ext(activeDoc.filename) }}</span>
+            <h3 class="truncate">{{ activeDoc.filename }}</h3>
+          </div>
+          <div class="flex gap-8">
+            <button class="btn btn-ghost btn-sm" (click)="openInNewTab(activeDoc)" title="Abrir em nova aba">↗</button>
+            <button class="btn btn-ghost btn-sm" (click)="closePanel()">✕</button>
+          </div>
+        </div>
+        <div class="panel-body viewer-body">
+          @if (isPdf(activeDoc.filename)) {
+            <iframe [src]="viewUrl | safeUrl" class="doc-iframe" title="Visualizador de documento"></iframe>
+          } @else {
+            <div class="non-pdf-notice">
+              <div class="npn-icon">{{ ext(activeDoc.filename) }}</div>
+              <p>Visualização inline disponível apenas para PDFs.</p>
+              <button class="btn btn-primary" (click)="openInNewTab(activeDoc)">↗ Abrir em nova aba</button>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ── Substituição ── -->
+      @if (panelMode === 'replace' && activeDoc) {
+        <div class="card-header">
+          <h3>Substituir Documento</h3>
+          <button class="btn btn-ghost btn-sm" (click)="closePanel()">✕</button>
+        </div>
+        <div class="card-body">
+          <div class="replace-info">
+            <span class="text-sm text-secondary">Documento atual:</span>
+            <span class="replace-filename">{{ activeDoc.filename }}</span>
+          </div>
+
+          <div class="replace-drop" [class.has-file]="replaceFile">
+            <label class="replace-label">
+              <input type="file" accept=".pdf,.docx,.doc,.txt,.md" hidden (change)="onReplaceSelected($event)">
+              @if (!replaceFile) {
+                <div class="rd-inner">
+                  <span class="rd-icon">📁</span>
+                  <span class="rd-text">Clique para selecionar o novo arquivo</span>
+                  <span class="rd-hint text-xs text-muted">PDF, DOCX, TXT, MD</span>
+                </div>
+              } @else {
+                <div class="rd-selected">
+                  <span class="rd-check">✓</span>
+                  <span class="rd-filename">{{ replacePreview }}</span>
+                </div>
+              }
+            </label>
+          </div>
+
+          <div class="replace-notice text-sm">
+            <strong>⚠ Atenção:</strong> o documento atual será removido e o novo será indexado.
+            O cache de embeddings será invalidado automaticamente.
+          </div>
+
+          <div class="replace-actions">
+            <button class="btn btn-ghost" (click)="closePanel()">Cancelar</button>
+            <button class="btn btn-primary" (click)="confirmReplace()"
+                    [disabled]="!replaceFile || replacing">
+              @if (replacing) { <span class="spinner"></span> Substituindo… }
+              @else { ✓ Confirmar Substituição }
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- ── Análise semântica ── -->
+      @if (panelMode === 'analysis') {
+        <div class="card-header">
+          <h3>Análise Semântica da Base</h3>
+          <button class="btn btn-ghost btn-sm" (click)="closePanel()">✕</button>
+        </div>
+        <div class="card-body analysis-body">
+          @if (analyzing) {
+            <div class="analysis-loading">
+              <div class="spinner"></div>
+              <span class="text-sm text-secondary">Extraindo e resumindo documentos via LLM…</span>
+            </div>
+          } @else if (!analysisResults.length) {
+            <p class="text-muted text-sm">Sem resultados.</p>
+          } @else {
+            @for (r of analysisResults; track r.company_file) {
+              <div class="analysis-item">
+                <div class="ai-header">
+                  <span class="ai-filename">{{ r.company_file }}</span>
+                  @if (r.extracted_tables) {
+                    <span class="badge" style="font-size:11px">Tabelas extraídas</span>
+                  }
+                  @if (r.status === 'error') {
+                    <span class="badge" style="background:rgba(232,69,69,.12);color:var(--danger);font-size:11px">Erro</span>
+                  }
+                </div>
+                @if (r.resume) {
+                  <p class="ai-resume">{{ r.resume }}</p>
+                }
+                @if (r.details) {
+                  <p class="text-xs text-muted" style="margin-top:4px">{{ r.details }}</p>
+                }
+              </div>
+            }
+          }
+        </div>
+      }
+
+    </div>
+  }
+</div>

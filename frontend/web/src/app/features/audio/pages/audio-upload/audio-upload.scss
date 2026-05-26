@@ -1,0 +1,88 @@
+/* ── Inputs ── */
+.audio-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 36px 20px; text-align: center; cursor: pointer;
+  transition: all .2s; margin-bottom: 16px;
+  &.drag-over { border-color: var(--accent); background: rgba(43,123,232,.05); }
+  &.has-file  { border-color: var(--safe); background: rgba(39,174,96,.05); }
+  &:hover     { border-color: var(--accent); }
+}
+.dz-inner { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.dz-icon  { font-size: 36px; }
+.dz-text  { font-size: 14px; font-weight: 500; }
+.dz-file  { display: flex; align-items: center; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.file-name { font-weight: 600; font-size: 13px; }
+.upload-btn { width: 100%; }
+
+.consent-check {
+  display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px;
+  font-size: 13px; color: var(--text-s); cursor: pointer; line-height: 1.5;
+  input { margin-top: 3px; accent-color: var(--accent); flex-shrink: 0; }
+}
+
+.record-btn { width: 100%; }
+.recording-indicator {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+  border-radius: var(--radius-sm); background: rgba(232,69,69,.1); color: var(--danger); font-weight: 600;
+  .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); animation: blink 1s ease infinite; }
+}
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+
+.error-card { border-left: 4px solid var(--danger); }
+
+/* ── Result hero ── */
+.result-hero-card { border-top: 3px solid var(--accent); }
+.result-hero {
+  display: grid; grid-template-columns: 190px 1fr 200px;
+  gap: 28px; align-items: start;
+}
+.hero-left  { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.gauge-label { font-size: 12px; color: var(--text-m); text-align: center; }
+.hero-center { display: flex; flex-direction: column; gap: 10px; }
+.hero-action { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; }
+.hero-msg    { line-height: 1.5; }
+.hero-chips  { display: flex; flex-direction: column; gap: 6px; }
+.chip {
+  font-size: 13px; color: var(--text-s); padding: 6px 10px;
+  background: var(--snow-dim); border-radius: var(--radius-sm);
+}
+.hero-right  { display: flex; flex-direction: column; gap: 10px; }
+.hstat       { display: flex; flex-direction: column; gap: 2px; }
+.hstat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--text-m); }
+.hstat-val   { font-size: 13px; font-weight: 500; }
+
+/* ── Charts ── */
+.charts-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 20px; }
+.chart-desc  { font-size: 13px; color: var(--text-s); margin-bottom: 14px; line-height: 1.5; }
+.legend-row  { display: flex; gap: 16px; margin-top: 12px;
+  .leg-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-s); }
+  .leg-dot  { width: 10px; height: 10px; border-radius: 50%; }
+}
+
+.radar-body { display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+.radar-legend { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 130px; }
+.rl-row  { display: flex; align-items: center; gap: 8px; }
+.rl-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.rl-label { font-size: 13px; color: var(--text-s); flex: 1; }
+.rl-val  { font-size: 12px; font-weight: 600; }
+
+.conformity-gauge { margin-top: 8px; }
+.cg-track { position: relative; height: 14px; background: var(--border); border-radius: 7px; overflow: hidden; margin-bottom: 10px; }
+.cg-fill  { height: 100%; border-radius: 7px; max-width: 100%; transition: width .6s ease; }
+.cg-marker { position: absolute; top: -3px; width: 3px; height: 20px; background: var(--text-p); border-radius: 2px; transform: translateX(-50%); transition: left .6s ease; }
+.cg-labels { display: flex; justify-content: space-between; align-items: center;
+  .cg-value { font-size: 15px; font-weight: 700; } }
+
+.summary-pre {
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.7;
+  white-space: pre-wrap; background: var(--snow-dim); padding: 18px;
+  border-radius: var(--radius-sm); overflow-x: auto; max-height: 400px; overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .audio-inputs  { grid-template-columns: 1fr; }
+  .result-hero   { grid-template-columns: 1fr; }
+  .charts-grid   { grid-template-columns: 1fr; }
+}

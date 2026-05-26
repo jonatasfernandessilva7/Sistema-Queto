@@ -1,0 +1,270 @@
+<div class="page-header">
+  <h1>Relatórios C2M</h1>
+  <p>Análises probabilísticas de crise cibernética geradas pelo pipeline de inferência</p>
+</div>
+
+<!-- Sparkline histórico de probabilidade -->
+@if (hasSparkline()) {
+  <div class="card mb-24">
+    <div class="card-header">
+      <h3>Histórico de Probabilidade de Crise</h3>
+      <span class="text-xs text-muted font-mono">últimos {{ probabilityHistory.length }} relatórios</span>
+    </div>
+    <div class="card-body spark-body">
+      <app-sparkline
+        [values]="probabilityHistory"
+        [color]="sparklineColor"
+        [w]="700" [h]="72">
+      </app-sparkline>
+      <div class="spark-labels">
+        <span class="text-xs text-muted">Mais antigo</span>
+        <span class="text-xs text-muted">Mais recente</span>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Tabela de relatórios -->
+<div class="card">
+  <div class="card-header">
+    <h3>Histórico ({{ reports.length }})</h3>
+    <button class="btn btn-ghost btn-sm" (click)="load()">🔄 Atualizar</button>
+  </div>
+  <div class="table-wrap">
+    @if (loading) {
+      <div class="loading-center"><div class="spinner"></div></div>
+    } @else if (!reports.length) {
+      <div class="empty-state">Nenhum relatório gerado ainda.</div>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Data</th>
+            <th>Probabilidade</th>
+            <th>ISO 22324</th>
+            <th>Prioridade</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of reports; track r.id) {
+            <tr class="clickable" [class.row-selected]="selected?.id === r.id" (click)="select(r)">
+              <td class="font-mono text-muted">{{ r.id }}</td>
+              <td class="font-mono text-sm">{{ getTs(r) }}</td>
+              <td>
+                @if (r.probability_pct !== null) {
+                  <span class="prob-chip" [style.background]="isoColor(r.iso_level) + '20'" [style.color]="isoColor(r.iso_level)">
+                    {{ r.probability_pct | number:'1.1-1' }}%
+                  </span>
+                } @else {
+                  <span class="text-muted text-sm">—</span>
+                }
+              </td>
+              <td>
+                @if (r.iso_level) {
+                  <app-crisis-badge [level]="r.iso_level"></app-crisis-badge>
+                } @else {
+                  <span class="text-muted text-sm">—</span>
+                }
+              </td>
+              <td>
+                @if (r.priority) {
+                  <span class="badge">{{ r.priority }}</span>
+                } @else {
+                  <span class="text-muted text-sm">—</span>
+                }
+              </td>
+              <td>
+                <span class="btn btn-ghost btn-sm">
+                  {{ selected?.id === r.id ? '▲ Fechar' : '▼ Ver' }}
+                </span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>
+
+<!-- Painel de detalhe do relatório selecionado -->
+@if (selected) {
+  <div class="report-detail mt-24">
+
+    <!-- Cabeçalho do relatório -->
+    <div class="card detail-header-card">
+      <div class="card-body detail-hero">
+        <div class="hero-gauge">
+          @if (selected.probability_pct !== null) {
+            <app-gauge-chart [value]="selected.probability_pct" [size]="160"></app-gauge-chart>
+            <div class="gauge-label">Probabilidade de Crise</div>
+          } @else {
+            <div class="no-data">Dados não extraídos</div>
+          }
+        </div>
+        <div class="hero-meta">
+          @if (selected.iso_level) {
+            <app-crisis-badge [level]="selected.iso_level"></app-crisis-badge>
+          }
+          <div class="hero-action" [style.color]="isoColor(selected.iso_level)">
+            {{ selected.priority ?? '—' }}
+          </div>
+          <div class="hero-stats">
+            @if (selected.std_deviation !== null) {
+              <div class="hstat">
+                <span class="hstat-label">Desvio Padrão (σ)</span>
+                <span class="hstat-val font-mono">{{ selected.std_deviation | number:'1.4-4' }}</span>
+              </div>
+            }
+            @if (selected.ci_lower !== null && selected.ci_upper !== null) {
+              <div class="hstat">
+                <span class="hstat-label">IC 95%</span>
+                <span class="hstat-val font-mono">
+                  [{{ selected.ci_lower | number:'1.4-4' }}, {{ selected.ci_upper | number:'1.4-4' }}]
+                </span>
+              </div>
+            }
+            @if (selected.conformity_factor !== null) {
+              <div class="hstat">
+                <span class="hstat-label">Fator de Conformidade (C)</span>
+                <span class="hstat-val font-mono">{{ selected.conformity_factor | number:'1.4-4' }}</span>
+              </div>
+            }
+            @if (selected.sentiment_label) {
+              <div class="hstat">
+                <span class="hstat-label">Sentimento</span>
+                <span class="hstat-val">{{ selected.sentiment_label }}
+                  @if (selected.sentiment_polarity !== null) {
+                    <span class="font-mono text-muted"> ({{ selected.sentiment_polarity | number:'1.3-3' }})</span>
+                  }
+                </span>
+              </div>
+            }
+          </div>
+        </div>
+        <div class="hero-ts">
+          <span class="font-mono text-muted text-xs">{{ getTs(selected) }}</span>
+          <button class="btn btn-ghost btn-sm mt-8" (click)="selected = null">✕ Fechar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="charts-grid mt-16">
+
+      <!-- Pearson — drivers de risco -->
+      @if (hasPearson()) {
+        <div class="card">
+          <div class="card-header">
+            <h3>Drivers de Risco — Correlação de Pearson</h3>
+          </div>
+          <div class="card-body">
+            <p class="chart-desc">
+              Variáveis com maior correlação absoluta são os principais fatores que influenciaram
+              a probabilidade de crise nesta análise.
+            </p>
+            <app-bar-chart
+              [entries]="pearsonEntries"
+              [showNegative]="true"
+              unit=""
+              [maxValue]="1">
+            </app-bar-chart>
+            <div class="legend-row">
+              <span class="leg-item"><span class="leg-dot" style="background:#E84545"></span>Aumenta risco</span>
+              <span class="leg-item"><span class="leg-dot" style="background:#27AE60"></span>Reduz risco</span>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Percentis -->
+      @if (hasPercentiles()) {
+        <div class="card">
+          <div class="card-header">
+            <h3>Distribuição de Probabilidade — Percentis</h3>
+          </div>
+          <div class="card-body">
+            <p class="chart-desc">
+              Distribuição dos 50.000 cenários Monte Carlo. Valores altos nos percentis superiores
+              indicam crise provável mesmo em cenários conservadores.
+            </p>
+            <app-bar-chart
+              [entries]="percentileEntries"
+              unit="%"
+              [maxValue]="100">
+            </app-bar-chart>
+          </div>
+        </div>
+      }
+
+      <!-- Radar — contexto organizacional -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Contexto Organizacional (ISO 22325)</h3>
+        </div>
+        <div class="card-body radar-body">
+          <app-radar-chart [entries]="radarEntries" [size]="200"></app-radar-chart>
+          <div class="radar-legend">
+            @for (e of radarEntries; track e.label) {
+              <div class="rl-row">
+                <span class="rl-dot" [style.background]="e.value ? '#27AE60' : '#E84545'"></span>
+                <span class="rl-label">{{ e.label }}</span>
+                <span class="rl-val font-mono">{{ e.value ? '✓' : '✗' }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Fator de conformidade visual -->
+      @if (selected.conformity_factor !== null) {
+        <div class="card">
+          <div class="card-header">
+            <h3>Fator de Conformidade (C)</h3>
+          </div>
+          <div class="card-body">
+            <p class="chart-desc">
+              Divergência semântica entre a comunicação analisada e os documentos de governança indexados.
+              C = 0 indica conformidade total; C = 1 indica divergência total.
+            </p>
+            <div class="conformity-gauge">
+              <div class="cg-track">
+                <div class="cg-fill"
+                     [style.width.%]="selected.conformity_factor * 100"
+                     [style.background]="probColor(selected.conformity_factor * 100)">
+                </div>
+                <div class="cg-marker" [style.left.%]="selected.conformity_factor * 100"></div>
+              </div>
+              <div class="cg-labels">
+                <span class="text-xs" style="color:#27AE60">C = 0 (Conformante)</span>
+                <span class="cg-value font-mono" [style.color]="probColor(selected.conformity_factor * 100)">
+                  {{ selected.conformity_factor | number:'1.4-4' }}
+                </span>
+                <span class="text-xs" style="color:#E84545">C = 1 (Divergente)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Texto completo do relatório -->
+    <div class="card mt-16">
+      <div class="card-header">
+        <h3>Conteúdo Completo do Relatório</h3>
+        <span class="text-xs text-muted">ID #{{ selected.id }}</span>
+      </div>
+      <div class="card-body">
+        @if (selected.is_binary_pdf) {
+          <div class="binary-notice">
+            📄 Este relatório é um arquivo PDF binário. Faça o download para visualizar.
+          </div>
+        } @else {
+          <pre class="report-pre">{{ selected.relatorio }}</pre>
+        }
+      </div>
+    </div>
+
+  </div>
+}

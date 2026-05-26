@@ -1,0 +1,5 @@
+.gauge-wrap { position: relative; text-align: center; }
+.gauge-value {
+  font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700;
+  margin-top: -8px; transition: color .4s;
+}

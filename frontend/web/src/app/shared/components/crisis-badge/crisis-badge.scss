@@ -1,0 +1,8 @@
+.crisis-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 20px;
+  background: var(--bg, rgba(113,128,150,.1));
+  color: var(--c, #718096);
+  font-size: 12px; font-weight: 600; letter-spacing: .4px;
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+}

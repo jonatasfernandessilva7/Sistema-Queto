@@ -1,0 +1,171 @@
+<div class="page-header">
+  <h1>RLHF — Aprendizado Contínuo</h1>
+  <p>Reinforcement Learning with Human Feedback · Ajuste adaptativo dos parâmetros do modelo C2M</p>
+</div>
+
+<div class="rlhf-layout">
+
+  <!-- Pesos atuais -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Pesos Atuais do Modelo</h3>
+      <div class="flex gap-8">
+        <button class="btn btn-ghost btn-sm" (click)="loadWeights()">🔄</button>
+        <button class="btn btn-danger btn-sm" (click)="resetWeights()" [disabled]="resetting">
+          @if (resetting) { <span class="spinner"></span> } @else { ↺ } Reset
+        </button>
+      </div>
+    </div>
+    <div class="card-body">
+      @if (loadingWeights) {
+        <div class="flex items-center gap-8"><div class="spinner"></div> Carregando…</div>
+      } @else if (!weights) {
+        <p class="text-muted text-sm">Nenhum peso carregado.</p>
+      } @else {
+        <div class="weights-list">
+          @for (wk of weightKeys; track wk.key) {
+            <div class="weight-row">
+              <div class="weight-meta">
+                <span class="weight-label">{{ wk.label }}</span>
+                <span class="weight-desc text-xs text-muted">{{ wk.desc }}</span>
+              </div>
+              <div class="weight-bar-wrap">
+                <div class="weight-bar"
+                     [style.width.%]="isSimCount(wk.key) ? 100 : isThreshold(wk.key) ? getWeightVal(wk.key)*100 : getWeightVal(wk.key)*400">
+                </div>
+              </div>
+              <span class="weight-val font-mono">
+                {{ isSimCount(wk.key) ? getWeightVal(wk.key).toLocaleString() : getWeightVal(wk.key).toFixed(4) }}
+              </span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Enviar feedback -->
+  <div class="card">
+    <div class="card-header"><h3>Enviar Feedback de Relatório</h3></div>
+    <div class="card-body" [formGroup]="feedbackForm">
+      <div class="form-group">
+        <label class="form-label">ID do Relatório</label>
+        <input class="form-control" formControlName="report_id" placeholder="ex: relatorio_20250524_143022">
+      </div>
+
+      <div class="form-group mt-16">
+        <label class="form-label">A crise ocorreu de fato?</label>
+        <div class="toggle-row">
+          <input type="checkbox" formControlName="actual_crisis" id="ac">
+          <label for="ac" class="toggle-label">
+            {{ feedbackForm.get('actual_crisis')?.value ? '✓ Sim, houve crise' : '✗ Não houve crise' }}
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group mt-16">
+        <label class="form-label">Avaliação da probabilidade estimada</label>
+        <div class="prob-options">
+          @for (opt of ['too_low','accurate','too_high']; track opt) {
+            <label class="prob-opt" [class.selected]="feedbackForm.get('c2m_probability_comment')?.value === opt">
+              <input type="radio" formControlName="c2m_probability_comment" [value]="opt" hidden>
+              {{ opt === 'too_low' ? '📉 Muito baixa' : opt === 'accurate' ? '✓ Precisa' : '📈 Muito alta' }}
+            </label>
+          }
+        </div>
+      </div>
+
+      <div class="form-group mt-16">
+        <label class="form-label">Utilidade do Relatório (1–5)</label>
+        <div class="stars">
+          @for (s of [1,2,3,4,5]; track s) {
+            <button type="button" class="star"
+              [class.active]="feedbackForm.get('usefulness_score')?.value >= s"
+              (click)="feedbackForm.patchValue({usefulness_score: s})">★</button>
+          }
+        </div>
+      </div>
+
+      <div class="form-group mt-16">
+        <label class="form-label">Comentários</label>
+        <textarea class="form-control" formControlName="comments" rows="3"
+                  placeholder="Observações sobre a qualidade da análise…"></textarea>
+      </div>
+
+      <button class="btn btn-primary mt-16" style="width:100%"
+              (click)="submitFeedback()" [disabled]="submittingFb || feedbackForm.invalid">
+        @if (submittingFb) { <span class="spinner"></span> Enviando… }
+        @else { 📨 Enviar Feedback }
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Processar RLHF -->
+<div class="card mt-24">
+  <div class="card-header">
+    <h3>Ciclo de Ajuste RLHF</h3>
+    <button class="btn btn-primary btn-sm" (click)="processFeedback()" [disabled]="processing">
+      @if (processing) { <span class="spinner"></span> Processando… }
+      @else { ⚙ Processar Ajustes }
+    </button>
+  </div>
+  <div class="card-body">
+    <p class="text-sm text-secondary" style="margin-bottom:20px">
+      Analisa padrões de feedback (FP/FN rate), identifica desvios e aplica bounded gradient step (máx. 5%) nos parâmetros do modelo.
+      Requer mínimo de 5 feedbacks para execução.
+    </p>
+    <div class="rlhf-info-grid">
+      <div class="info-cell">
+        <span class="info-label">Threshold FP</span>
+        <span class="info-val font-mono">> 20%</span>
+      </div>
+      <div class="info-cell">
+        <span class="info-label">Threshold FN</span>
+        <span class="info-val font-mono">> 15%</span>
+      </div>
+      <div class="info-cell">
+        <span class="info-label">Step máximo</span>
+        <span class="info-val font-mono">5% / ajuste</span>
+      </div>
+      <div class="info-cell">
+        <span class="info-label">Persistência</span>
+        <span class="info-val font-mono">JSON + SQLite</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Histórico de ajustes -->
+<div class="card mt-24">
+  <div class="card-header">
+    <h3>Histórico de Ajustes</h3>
+    <button class="btn btn-ghost btn-sm" (click)="loadAdjustments()">🔄</button>
+  </div>
+  <div class="table-wrap">
+    @if (loadingAdj) {
+      <div style="padding:24px;text-align:center"><div class="spinner" style="margin:auto"></div></div>
+    } @else if (!adjustments.length) {
+      <div style="padding:24px;text-align:center;color:var(--text-m)">Nenhum ajuste registrado ainda.</div>
+    } @else {
+      <table>
+        <thead><tr><th>Parâmetro</th><th>Valor Anterior</th><th>Novo Valor</th><th>Δ</th><th>Data</th></tr></thead>
+        <tbody>
+          @for (a of adjustments; track $index) {
+            <tr>
+              <td class="font-mono text-sm">{{ getAdjParam(a) }}</td>
+              <td class="font-mono text-muted">{{ getAdjOld(a) }}</td>
+              <td class="font-mono">{{ getAdjNew(a) }}</td>
+              <td>
+                <span class="delta" [class.up]="getAdjNew(a) > getAdjOld(a)" [class.down]="getAdjNew(a) < getAdjOld(a)">
+                  {{ getAdjNew(a) > getAdjOld(a) ? '▲' : '▼' }}
+                </span>
+              </td>
+              <td class="font-mono text-muted text-xs">{{ getAdjTs(a) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>
