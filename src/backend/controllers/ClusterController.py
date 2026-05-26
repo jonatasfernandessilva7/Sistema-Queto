@@ -20,7 +20,7 @@ def get_cluster_events(k: int = 3):
         raise HTTPException(status_code=500, detail=str(e))
     
 def get_all_events():
-    history = getEventHistory()
+    history = get_event_history_data()
     try:
         return JSONResponse(content={"status":200, "events": history})
     except Exception as e:

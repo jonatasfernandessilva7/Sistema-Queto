@@ -32,7 +32,16 @@ from src.agents.orchestrator.C2M_Analysis import DecisionTreeAnalyzer, MonteCarl
 from src.agents.orchestrator.C2M_Models import (
     OrganizationalContextC2M, SentimentAnalysisC2M, RiskAgentC2M
 )
-from src.backend.repository.GenericsRepository import getAllReports, saveReport
+from src.backend.repository.GenericsRepository import (
+    getAllReports, 
+    saveReport, 
+    delete_document_by_id,
+    update_document_by_id,
+    delete_report_by_id,
+    update_report_by_id,
+    get_report_statistics,
+    get_all_documentos
+)
 from src.AiServices.services.AiAnswerService import gerar_resposta_llama_api
 
 log = logging.getLogger(__name__)
@@ -521,6 +530,157 @@ async def explain_report(report_id: str) -> dict:
         }
     except Exception as e:
         log.error(f"Erro ao gerar explicação: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# NOVO: DOCUMENTOS - EDIÇÃO E DELEÇÃO
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+@router.put(
+    "/documents/{doc_id}",
+    summary="Atualizar Documento",
+    description="Atualiza um documento corporativo existente"
+)
+async def update_document(
+    doc_id: int,
+    filename: str = Query(None, description="Novo nome do arquivo (opcional)"),
+    content: str = Query(None, description="Novo conteúdo em texto (opcional)")
+) -> dict:
+    """
+    Atualiza um documento corporativo existente.
+    Pelo menos um dos campos (filename ou content) deve ser fornecido.
+    """
+    try:
+        if filename is None and content is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Pelo menos 'filename' ou 'content' deve ser fornecido"
+            )
+        
+        content_bytes = content.encode('utf-8') if content else None
+        result = update_document_by_id(doc_id, filename=filename, content=content_bytes)
+        
+        if result:
+            log.info(f"Document updated: ID={doc_id}")
+            return {
+                "status": "success",
+                "document_id": doc_id,
+                "message": "Documento atualizado com sucesso",
+                "updated_at": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Falha ao atualizar documento")
+    except Exception as e:
+        log.error(f"Erro ao atualizar documento: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete(
+    "/documents/{doc_id}",
+    summary="Deletar Documento",
+    description="Deleta um documento corporativo"
+)
+async def delete_document(doc_id: int) -> dict:
+    """Deleta um documento corporativo do sistema"""
+    try:
+        result = delete_document_by_id(doc_id)
+        if result:
+            log.info(f"Document deleted: ID={doc_id}")
+            return {
+                "status": "success",
+                "document_id": doc_id,
+                "message": "Documento deletado com sucesso",
+                "deleted_at": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Documento não encontrado")
+    except Exception as e:
+        log.error(f"Erro ao deletar documento: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# NOVO: RELATÓRIOS - EDIÇÃO, DELEÇÃO E ESTATÍSTICAS
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+@router.put(
+    "/reports/{report_id}",
+    summary="Atualizar Relatório",
+    description="Atualiza o conteúdo de um relatório existente"
+)
+async def update_report(
+    report_id: int,
+    content: str = Query(..., description="Novo conteúdo do relatório")
+) -> dict:
+    """Atualiza o conteúdo de um relatório C2M existente"""
+    try:
+        content_bytes = content.encode('utf-8')
+        result = update_report_by_id(report_id, content_bytes)
+        
+        if result:
+            log.info(f"Report updated: ID={report_id}")
+            return {
+                "status": "success",
+                "report_id": report_id,
+                "message": "Relatório atualizado com sucesso",
+                "updated_at": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Falha ao atualizar relatório")
+    except Exception as e:
+        log.error(f"Erro ao atualizar relatório: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete(
+    "/reports/{report_id}",
+    summary="Deletar Relatório",
+    description="Deleta um relatório C2M gerado"
+)
+async def delete_report(report_id: int) -> dict:
+    """Deleta um relatório do sistema"""
+    try:
+        result = delete_report_by_id(report_id)
+        if result:
+            log.info(f"Report deleted: ID={report_id}")
+            return {
+                "status": "success",
+                "report_id": report_id,
+                "message": "Relatório deletado com sucesso",
+                "deleted_at": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Relatório não encontrado")
+    except Exception as e:
+        log.error(f"Erro ao deletar relatório: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/reports/stats/dashboard",
+    summary="Estatísticas dos Relatórios",
+    description="Retorna estatísticas dos relatórios para gráficos e dashboard"
+)
+async def get_reports_stats() -> dict:
+    """
+    Retorna estatísticas dos relatórios para visualização em gráficos.
+    
+    Inclui:
+    - Total de relatórios gerados
+    - Total de documentos indexados
+    - Evolução temporal (últimos 30 dias)
+    - Tamanho médio dos relatórios
+    """
+    try:
+        stats = get_report_statistics()
+        return {
+            "status": "success",
+            "data": stats,
+            "generated_at": datetime.now().isoformat()
+        }
+    except Exception as e:
+        log.error(f"Erro ao obter estatísticas: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -28,7 +28,7 @@ async def receiveEvent(evento: EventModel):
 
         relatorio = await AiGeneretadReportsWithLlama(evento, aiReactiveAnswer, aiDeliberativePlann, priority)
         aiReport = AiSaveReports(relatorio, timestamp, priority)
-        sendEmailReportLessAttachment(aiReport, os.getenv("EMAIL_DESTINO"))
+        sendEmailReportLessAttachment(aiReport, os.getenv("DESTINATION_EMAIL"))
 
         return JSONResponse(content={
             "status":200,

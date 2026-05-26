@@ -30,7 +30,7 @@ app = FastAPI(
 )
 
 # Initialize database
-initialize_app()
+#initialize_app()
 
 # Add CORS middleware
 app.add_middleware(

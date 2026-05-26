@@ -38,7 +38,7 @@ router = APIRouter(
 )
 
 @router.delete("/u/docs/{doc_id}")
-def delete_doc_id(doc_id):
+def delete_doc_id(doc_id: int):
     return DocumentController.delete_document_controller(doc_id)
 
 @router.post("/u/feedback")

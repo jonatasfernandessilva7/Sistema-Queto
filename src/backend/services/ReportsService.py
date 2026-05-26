@@ -1,27 +1,28 @@
+from typing import Optional
 from src.backend.repository.GenericsRepository import saveReport, getAllReports
 
-def reportUpload(documentId, documentContent):
-    if not isinstance(documentId, int) or documentId <= 0:
-        return {"success": False, "message": "ID of document is invalid to report."}
+
+def reportUpload(documentId: Optional[int], documentContent: str) -> dict:
+    """
+    Persiste um relatório no banco a partir de conteúdo textual.
+    documentId pode ser None para relatórios não vinculados a documentos.
+    """
     if not isinstance(documentContent, str) or not documentContent.strip():
-        return {"success": False, "message": "Content of report can empty."}
+        return {"success": False, "message": "Conteúdo do relatório não pode ser vazio."}
 
-    report_bytes = documentContent.encode('utf-8')
+    report_bytes = documentContent.encode("utf-8")
+    report_id = saveReport(documentId, report_bytes)
+    return {"success": True, "report_id": report_id}
 
-    result = saveReport(documentId, report_bytes)
-    return result
 
-def viewAllReports():
+def viewAllReports() -> dict:
+    """
+    Retorna todos os relatórios do banco prontos para serialização JSON.
+    A decodificação do BLOB é feita em getAllReports().
+    """
     reports = getAllReports()
 
-    if reports is not None:
-        for reports in reports:
-            if isinstance(reports.get('relatorios'), bytes):
-                try:
-                    reports['relatorio'] = reports['relatorio'].decode('utf8')
-                except UnicodeError:
-                    reports['relatorio'] = "binary content invalid"
+    if reports is None:
+        return {"success": False, "reports": [], "message": "Erro ao recuperar relatórios."}
 
-        return {"success": True, "reports": reports, "message": "are ok"}
-    else:
-        return {"success": False, "reports": [], "message": "reports not found"}
+    return {"success": True, "reports": reports, "message": "OK"}

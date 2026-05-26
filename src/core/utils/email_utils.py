@@ -5,12 +5,18 @@ Email utilities for sending notifications and reports.
 import os
 import smtplib
 import logging
+import time
 from email.message import EmailMessage
 from dotenv import load_dotenv
 
 load_dotenv()
 
 log = logging.getLogger(__name__)
+
+# SMTP Configuration
+SMTP_TIMEOUT = 30  # Increased from 10 to 30 seconds
+SMTP_RETRIES = 3   # Number of retry attempts
+SMTP_RETRY_DELAY = 2  # Delay between retries in seconds
 
 
 class EmailConfigurationError(Exception):
@@ -66,7 +72,7 @@ def validate_email_configuration():
     # Test connection
     try:
         log.info(f"Testing SMTP connection to {smtp_server}:{smtp_port}")
-        with smtplib.SMTP(smtp_server, int(smtp_port), timeout=10) as smtp:
+        with smtplib.SMTP(smtp_server, int(smtp_port), timeout=SMTP_TIMEOUT) as smtp:
             smtp.starttls()
             smtp.login(origin_email, password)
         log.info("Email configuration validated successfully")
@@ -83,6 +89,53 @@ def _validate_email_address(email: str) -> bool:
     import re
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
+
+
+def _send_smtp_message_with_retry(msg: EmailMessage, origin_email: str, password: str, smtp_server: str, smtp_port: str):
+    """
+    Send SMTP message with retry logic and improved error handling.
+    
+    Args:
+        msg: EmailMessage object to send
+        origin_email: Sender email address
+        password: SMTP password
+        smtp_server: SMTP server address
+        smtp_port: SMTP server port
+        
+    Raises:
+        EmailSenderError: If sending fails after all retries
+    """
+    last_error = None
+    
+    for attempt in range(SMTP_RETRIES):
+        try:
+            log.info(f"Attempting to send email (attempt {attempt + 1}/{SMTP_RETRIES})...")
+            with smtplib.SMTP(smtp_server, int(smtp_port), timeout=SMTP_TIMEOUT) as smtp:
+                smtp.starttls()
+                smtp.login(origin_email, password)
+                smtp.send_message(msg)
+            log.info("Email sent successfully")
+            return
+        except smtplib.SMTPAuthenticationError as e:
+            log.error(f"SMTP authentication failed: {e}")
+            raise EmailSenderError(f"SMTP authentication failed: {str(e)}")
+        except smtplib.SMTPException as e:
+            last_error = e
+            log.warning(f"SMTP error on attempt {attempt + 1}: {e}")
+            if attempt < SMTP_RETRIES - 1:
+                log.info(f"Retrying in {SMTP_RETRY_DELAY} seconds...")
+                time.sleep(SMTP_RETRY_DELAY)
+        except (OSError, TimeoutError, ConnectionError) as e:
+            last_error = e
+            log.warning(f"Connection error on attempt {attempt + 1}: {e}")
+            if attempt < SMTP_RETRIES - 1:
+                log.info(f"Retrying in {SMTP_RETRY_DELAY} seconds...")
+                time.sleep(SMTP_RETRY_DELAY)
+    
+    # All retries exhausted
+    error_msg = f"Failed to send email after {SMTP_RETRIES} attempts: {str(last_error)}"
+    log.error(error_msg)
+    raise EmailSenderError(error_msg)
 
 
 def send_email_report_less_attachment(attachment_file: str, email_destination: str):
@@ -115,6 +168,18 @@ def send_email_report_less_attachment(attachment_file: str, email_destination: s
         smtp_server = os.getenv("SMTP_SERVER")
         smtp_port = os.getenv("SMTP_PORT")
         
+        # Double-check that all variables are set (defensive programming)
+        if not all([origin_email, password, smtp_server, smtp_port]):
+            missing = [var for var, val in [
+                ("ORIGIN_EMAIL", origin_email),
+                ("PASSWORD_EMAIL", password),
+                ("SMTP_SERVER", smtp_server),
+                ("SMTP_PORT", smtp_port)
+            ] if not val]
+            raise EmailConfigurationError(
+                f"Email configuration incomplete. Missing: {', '.join(missing)}"
+            )
+        
         msg = EmailMessage()
         msg["Subject"] = "[SISTEMA QUETO] RELATÓRIO"
         msg["From"] = origin_email
@@ -124,11 +189,7 @@ def send_email_report_less_attachment(attachment_file: str, email_destination: s
             filename = os.path.basename(attachment_file)
             msg.add_attachment(f.read(), maintype="application", subtype="octet-stream", filename=filename)
 
-        with smtplib.SMTP(smtp_server, int(smtp_port), timeout=10) as smtp:
-            smtp.starttls()
-            smtp.login(origin_email, password)
-            smtp.send_message(msg)
-        
+        _send_smtp_message_with_retry(msg, origin_email, password, smtp_server, smtp_port)
         log.info(f"Email sent successfully to {email_destination}")
         
     except EmailConfigurationError as e:
@@ -174,6 +235,18 @@ async def send_email_with_attachments(files_path, email_destination: str):
         password = os.getenv("PASSWORD_EMAIL")
         smtp_server = os.getenv("SMTP_SERVER")
         smtp_port = os.getenv("SMTP_PORT")
+        
+        # Double-check that all variables are set (defensive programming)
+        if not all([origin_email, password, smtp_server, smtp_port]):
+            missing = [var for var, val in [
+                ("ORIGIN_EMAIL", origin_email),
+                ("PASSWORD_EMAIL", password),
+                ("SMTP_SERVER", smtp_server),
+                ("SMTP_PORT", smtp_port)
+            ] if not val]
+            raise EmailConfigurationError(
+                f"Email configuration incomplete. Missing: {', '.join(missing)}"
+            )
 
         msg = EmailMessage()
         msg["Subject"] = "Relatório de Evento e Áudio Capturado"
@@ -197,11 +270,7 @@ async def send_email_with_attachments(files_path, email_destination: str):
                 log.error(f"Error reading attachment {path}: {e}")
                 raise EmailSenderError(f"Failed to read attachment {path}: {str(e)}")
 
-        with smtplib.SMTP(smtp_server, int(smtp_port), timeout=10) as smtp:
-            smtp.starttls()
-            smtp.login(origin_email, password)
-            smtp.send_message(msg)
-        
+        _send_smtp_message_with_retry(msg, origin_email, password, smtp_server, smtp_port)
         log.info(f"Email with {len(files_path)} attachments sent to {email_destination}")
         
     except EmailConfigurationError as e:

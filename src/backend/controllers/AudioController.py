@@ -126,13 +126,21 @@ async def receivesAndProcessAudio():
         c2m_analysis = await AiGenerateReportC2M(event)
         aiReport = c2m_analysis.get('analysis_summary', 'Relatório C2M gerado')
         reportFile = AiSaveReports(aiReport, timestamp, priority)
-        await sendEmailWithAttachments([reportFile, temporaryPath], os.getenv("DESTINATION_EMAIL"))
+        
+        # Send email in background to avoid blocking response
+        try:
+            await sendEmailWithAttachments([reportFile, temporaryPath], os.getenv("DESTINATION_EMAIL"))
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send email notification: {e}")
+            # Don't fail the entire request if email fails
 
         return JSONResponse(
             content=
             {
             "status": 200,
-            "message": "crise detectada, enviando email",
+            "message": "crise detectada, relatório gerado",
             "correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis": correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis,
             "AI_reactive_answer": aiReactiveAnswer,
             "AI_deliberative_plan": aiDeliberativePlann,
@@ -235,12 +243,20 @@ async def receivesAndProcessAudioUploaded(audio_path, q=None):
         c2m_analysis = await AiGenerateReportC2M(event)
         aiReport = c2m_analysis.get('analysis_summary', 'Relatório C2M gerado')
         reportFile = AiSaveReports(aiReport, datetime.datetime.now().strftime("%Y%m%d_%H%M%S"), type_event)
-        await sendEmailWithAttachments([reportFile, audio_path], os.getenv("DESTINATION_EMAIL"))
+        
+        # Send email in background to avoid blocking response
+        try:
+            await sendEmailWithAttachments([reportFile, audio_path], os.getenv("DESTINATION_EMAIL"))
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send email notification: {e}")
+            # Don't fail the entire request if email fails
 
         result = JSONResponse(
             content={
                 "status": 200,
-                "message": "crise detectada, enviando email",
+                "message": "crise detectada, relatório gerado",
                 "correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crise": correlation_between_spoken_text_and_phrases_that_may_signify_a_possible_cyber_crisis,
                 "AI_reactive_answer": aiReactiveAnswer,
                 "AI_deliberative_plan": aiDeliberativePlann,
