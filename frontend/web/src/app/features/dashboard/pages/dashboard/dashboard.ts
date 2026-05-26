@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { EventsService } from '../../../../core/services/events';
 import { DocumentsService } from '../../../../core/services/documents';
 import { ReportsService } from '../../../../core/services/reports';
-import { MemoryState } from '../../../../core/models';
+import { ReportParserService } from '../../../../core/services/report-parser';
+import { MemoryState} from '../../../../core/models';
 import { SharedModule } from '../../../../shared/shared-module';
 
 @Component({ selector: 'app-dashboard', templateUrl: './dashboard.html', styleUrls: ['./dashboard.scss'], standalone: true, imports: [CommonModule, SharedModule] })

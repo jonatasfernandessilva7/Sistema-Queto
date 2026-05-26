@@ -25,7 +25,7 @@ export class AudioUploadComponent {
   errorMessage = '';
   recordingActive = false;
 
-  // ── Chart data ─────────────────────────────────────────────────────────────
+  // Chart data
   pearsonEntries:    BarEntry[] = [];
   percentileEntries: BarEntry[] = [];
   radarEntries = [
@@ -41,7 +41,7 @@ export class AudioUploadComponent {
     private toast: ToastService,
   ) {}
 
-  // ── Upload / gravação ───────────────────────────────────────────────────────
+  // Upload / gravação 
 
   onFileSelected(ev: Event): void {
     const f = (ev.target as HTMLInputElement).files?.[0];
@@ -97,7 +97,7 @@ export class AudioUploadComponent {
     this.selectedFile = null; this.clearCharts();
   }
 
-  // ── Processamento do resultado C2M ─────────────────────────────────────────
+  // Processamento do resultado
 
   private onResult(r: AudioProcessResult): void {
     this.result = r;
@@ -145,7 +145,7 @@ export class AudioUploadComponent {
     this.radarEntries = this.radarEntries.map(e => ({ ...e, value: 0 }));
   }
 
-  // ── Helpers template ────────────────────────────────────────────────────────
+  // Helpers template
 
   get isoLevel(): IsoLevel  { return (this.result?.iso_22324?.level ?? 'VERDE') as IsoLevel; }
   get probPct(): number     { return (this.result?.mean_probability ?? 0) * 100; }

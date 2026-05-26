@@ -36,7 +36,24 @@
   letter-spacing: .4px; color: var(--text-m); }
 .hstat-val   { font-size: 14px; font-weight: 500; }
 
-.hero-ts { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.hero-ts { 
+  display: flex; 
+  flex-direction: column; 
+  align-items: flex-end; 
+  gap: 8px;
+
+  .btn-group {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-end;
+
+    .btn {
+      white-space: nowrap;
+    }
+  }
+}
 
 /* ── Charts grid ── */
 .charts-grid {

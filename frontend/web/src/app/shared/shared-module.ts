@@ -13,9 +13,14 @@ import { SparklineComponent }   from './components/sparkline/sparkline';
 import { SafeUrlPipe }          from './pipes/safe-url.pipe';
 
 @NgModule({
-  imports: [CommonModule, RouterModule, FormsModule, ReactiveFormsModule, SidebarComponent, TopbarComponent, CrisisBadgeComponent, GaugeChartComponent, BarChartComponent, RadarChartComponent, SparklineComponent, SafeUrlPipe],
+  imports: [
+    CommonModule, RouterModule, FormsModule, ReactiveFormsModule,
+    SidebarComponent, TopbarComponent, CrisisBadgeComponent,
+    GaugeChartComponent, BarChartComponent, RadarChartComponent,
+    SparklineComponent, SafeUrlPipe,
+  ],
   exports: [
-    CommonModule, FormsModule, ReactiveFormsModule,
+    CommonModule, RouterModule, FormsModule, ReactiveFormsModule,
     SidebarComponent, TopbarComponent, CrisisBadgeComponent,
     GaugeChartComponent, BarChartComponent, RadarChartComponent,
     SparklineComponent, SafeUrlPipe,

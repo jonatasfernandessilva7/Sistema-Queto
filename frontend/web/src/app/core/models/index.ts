@@ -1,6 +1,9 @@
 export type IsoLevel = 'VERDE' | 'AMARELO' | 'LARANJA' | 'VERMELHO' | 'DESCONHECIDO';
 export type Priority = 'Baixa' | 'Moderada' | 'Alta' | 'Crítico' | 'Desconhecida';
 
+// ── Chart entries ──
+export interface BarEntry { label: string; value: number; color?: string; }
+
 export interface MonteCarloResult {
   mean_probability: number;
   mean_probability_pct: number;

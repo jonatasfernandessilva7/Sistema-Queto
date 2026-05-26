@@ -12,6 +12,6 @@ export class SidebarComponent {
     { label: 'Documentos',  icon: '📄', route: '/documents' },
     { label: 'Relatórios',  icon: '📊', route: '/reports' },
     { label: 'Eventos',     icon: '⚡', route: '/events' },
-    { label: 'RLHF',        icon: '🧠', route: '/rlhf' },
+    { label: 'Feedback',        icon: '🧠', route: '/rlhf' },
   ];
 }
